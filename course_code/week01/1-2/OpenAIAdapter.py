@@ -2,7 +2,9 @@ class OpenAIResponsesAdapter(ModelAdapter):
     name = "openai-responses"
     capabilities = ModelCapabilities(
         chat_completions=False,
+        # 使用responses API
         responses=True,
+        # 原生schema约束
         structured_output="native_schema",
         tool_calling=True,
         supports_temperature=True,
@@ -10,6 +12,7 @@ class OpenAIResponsesAdapter(ModelAdapter):
     )
 
     def __init__(self, api_key: str, model: str) -> None:
+        # 模型外置：OpenAI迭代极快
         self.model = model
         self.client = OpenAI(
             api_key=api_key,
@@ -21,10 +24,12 @@ class OpenAIResponsesAdapter(ModelAdapter):
         kwargs: dict[str, Any] = {}
 
         if request.output_schema:
+            # 将schema放在API参数里，不占用token消耗
             kwargs["text"] = {
                 "format": {
                     "type": "json_schema",
                     "name": "agent_result",
+                    # 必须有，且为True
                     "strict": True,
                     "schema": request.output_schema,
                 }

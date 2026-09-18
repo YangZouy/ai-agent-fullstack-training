@@ -10,6 +10,7 @@ class OneTurnLoop:
             ),
             user=goal,
             max_output_tokens=1024,
+            # 使用pydantic类自动生成schema
             output_schema=AgentAction.model_json_schema(),
         )
 
@@ -19,9 +20,6 @@ class OneTurnLoop:
 
         # Adapter 负责协议归一化，Loop 仍负责领域对象校验。
         return AgentAction.model_validate(result.data)
-
-####
-
 
 import os
 

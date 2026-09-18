@@ -76,7 +76,7 @@ class LLMResponse(BaseModel):
     latency_ms: int = Field(ge=0)
     attempts: int = Field(ge=1)
 
-
+# prompt模板管理
 class PromptTemplate(BaseModel):
     # 表示由 Gateway 发布和版本化管理的系统 Prompt 模板资产。
     model_config = ConfigDict(extra="forbid")
@@ -104,7 +104,7 @@ class CallTrace(BaseModel):
     status: Literal["success", "failed"]
     error_code: str | None = None
 
-
+# 模型基础类
 @dataclass(frozen=True)
 class ModelConfig:
     # 将平台模型名映射为供应商模型、地址、密钥与能力配置。
@@ -114,7 +114,7 @@ class ModelConfig:
     supports_structured_output: bool
     structured_output_mode: Literal["json_schema", "json_object"] = "json_schema"
 
-
+# 设置主力模型和备用模型 方便后续做模型白名单校验
 MODEL_CONFIGS = {
     "general-primary": ModelConfig(
         provider_model=os.getenv("PRIMARY_PROVIDER_MODEL", "deepseek-v4-flash"),
@@ -131,7 +131,7 @@ MODEL_CONFIGS = {
         structured_output_mode="json_object",
     ),
 }
-
+# 受控模板库，字典管理
 PROMPT_TEMPLATES = {
     ("knowledge_decision", "v1"): PromptTemplate(
         name="knowledge_decision",
@@ -139,12 +139,13 @@ PROMPT_TEMPLATES = {
         system_template="你是${product_name}的知识库决策器。资料不足时搜索，资料充分时结束回答。不得编造制度内容。",
     )
 }
-
+# 计价表，用于成本核算
+# 每百万token的价格表
 PRICE_PER_MILLION = {
     "general-primary": {"input": 1.0, "output": 4.0},
     "general-backup": {"input": 0.8, "output": 3.2},
 }
-
+# 全局日志
 CALL_TRACES: list[CallTrace] = []
 
 
@@ -197,7 +198,9 @@ class OpenAICompatibleProvider:
             "messages": [message.model_dump() for message in messages],
             "timeout": timeout_seconds,
         }
+        # 要求结构化输出：
         if response_schema is not None:
+            # api接口添加response_format参数，赋值schema定义
             if config.structured_output_mode == "json_schema":
                 request_data["response_format"] = {
                     "type": "json_schema",
@@ -208,6 +211,7 @@ class OpenAICompatibleProvider:
                     },
                 }
             else:
+                # 否则降级为注入system消息 + 强制json约束，添加到messages消息列表中
                 request_data["response_format"] = {"type": "json_object"}
                 request_data["messages"] = [
                     {
@@ -249,36 +253,39 @@ class OpenAICompatibleProvider:
 
 provider: Provider = OpenAICompatibleProvider()
 
-
+# 调用方传递版本+变量，不穿prompt本身
 def render_prompt(selection: PromptSelection) -> Message:
     # 从受控模板库渲染系统提示词，调用方只能传版本和变量。
     template = PROMPT_TEMPLATES.get((selection.name, selection.version))
     if template is None:
         raise GatewayError("unknown_prompt_template", "Prompt 模板不存在", 400)
     try:
+        # 变量替换 Template是string库自带的
         content = Template(template.system_template).substitute(selection.variables)
     except KeyError as exc:
         raise GatewayError("missing_prompt_variable", f"缺少 Prompt 变量: {exc.args[0]}", 400) from exc
+    # 添加到消息列表中
     return Message(role="system", content=content)
 
-
+# 组装完整消息列表 将系统prompt统一注入messages的入口函数
 def build_messages(request: LLMRequest) -> list[Message]:
     # 将模板系统消息统一注入调用上下文，避免 Prompt 分散在各个 Agent 中。
     if request.prompt is None:
         return request.messages
     return [render_prompt(request.prompt), *request.messages]
 
-
+# 模型白名单的意义：调用方不能随意指定任意模型名，防止绕过策略或误用
 def validate_model(model: str, response_schema: dict[str, Any] | None) -> ModelConfig:
     # 校验模型白名单和结构化能力，阻止不等价的 fallback。
     config = MODEL_CONFIGS.get(model)
     if config is None:
         raise GatewayError("unknown_model", "模型不在 Gateway 允许列表中", 400)
+    # 请求需要结构化输出且该模型不支持时报异常
     if response_schema is not None and not config.supports_structured_output:
         raise GatewayError("structured_output_unsupported", "模型不支持 Structured Output", 400)
     return config
 
-
+# 
 def calculate_cost(model: str, usage: Usage) -> float:
     # 按实际模型和输入输出 Token 计算本次调用成本。
     price = PRICE_PER_MILLION[model]
@@ -315,11 +322,13 @@ def record_trace(
     CALL_TRACES.append(trace)
     logger.info("llm_call_trace=%s", trace.model_dump_json())
 
-
+# 判断哪些异常值得重试
 def is_retryable(exc: Exception) -> bool:
+    # 网络连接 超时 限流重试 
+    # gatewayError业务错误、ValueError参数错误 无法重试
     return isinstance(exc, (APIConnectionError, APITimeoutError, RateLimitError, TimeoutError, ConnectionError))
 
-
+# 非流式调用的重试 + 降级
 async def call_with_fallback(request: LLMRequest) -> LLMResponse:
     # 对临时故障有限重试，并在主模型不可用时切换能力等价的备用模型。
     requested_model = request.model
@@ -330,60 +339,78 @@ async def call_with_fallback(request: LLMRequest) -> LLMResponse:
     messages = build_messages(request)
     for model_name in dict.fromkeys([requested_model, "general-backup"]):
         try:
+            # 校验模型
             config = validate_model(model_name, request.response_schema)
         except GatewayError as exc:
             if model_name == requested_model:
                 raise exc
             last_error = exc
             continue
+        # 单个模型内的重试循环
         for retry_number in range(2):
             attempts += 1
             try:
                 content, usage = await provider.complete(config, messages, request.timeout_seconds, request.response_schema)
+                # 结构化输出校验（response_schema）
                 parsed: dict[str, Any] | list[Any] | None = None
                 if request.response_schema is not None:
                     try:
                         parsed = json.loads(content)
                         validate(instance=parsed, schema=request.response_schema)
                     except json.JSONDecodeError as exc:
+                        # json.loads 解析，失败
                         raise GatewayError("invalid_json", "模型没有返回合法 JSON") from exc
                     except JsonSchemaError as exc:
+                        # jsonschema.validate 校验结构，失败
                         raise GatewayError("schema_validation_failed", "模型结果不符合 response_schema") from exc
                 response = LLMResponse(
                     request_id=request_id,
                     model=model_name,
+                    # 原始数据
                     content=content,
+                    # 解析后的结构化数据
                     parsed=parsed,
                     usage=usage,
+                    # latency_ms 从 started 算起，包含重试和降级的全部耗时
+                    # 是真实用户等待时间
                     latency_ms=int((time.perf_counter() - started) * 1000),
                     attempts=attempts,
                 )
                 record_trace(request_id, requested_model, model_name, request.prompt, usage, response.latency_ms, attempts, "success")
                 return response
+            # 异常处理
             except GatewayError:
+                # 直接上抛 不重试、不降级（业务错误
                 raise
             except Exception as exc:
                 last_error = exc
+                # 可重试 + 首次失败
                 if is_retryable(exc) and retry_number == 0:
+                    # 间隔后同模型重试
                     await asyncio.sleep(0.1)
                     continue
+                # 可重试但已是第二次，或不可重试
+                # 进入下一个模型
                 break
+
     latency_ms = int((time.perf_counter() - started) * 1000)
     error_code = "model_unavailable"
     record_trace(request_id, requested_model, None, request.prompt, Usage(input_tokens=0, output_tokens=0), latency_ms, attempts, "failed", error_code)
     raise GatewayError(error_code, "主模型和备用模型均不可用") from last_error
 
-
+# sse编码 
 def encode_sse(event: dict[str, Any]) -> str:
     # 将统一事件编码为浏览器和 Agent 都可消费的 SSE 格式。
+    # ensure_ascii=False：让中文等非 ASCII 字符原样输出
     return f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
-
+# 流式调用的重试 + 降级
 async def stream_with_fallback(request: LLMRequest) -> AsyncIterator[str]:
     # 上游首块前可切备用模型；首块后仅发送流内错误，避免文本重复。
     messages = build_messages(request)
     started = time.perf_counter()
     attempts = 0
+    # 表示是否已经发过内容
     emitted = False
     last_error: Exception | None = None
     for model_name in dict.fromkeys([request.model, "general-backup"]):
@@ -396,10 +423,14 @@ async def stream_with_fallback(request: LLMRequest) -> AsyncIterator[str]:
             record_trace(str(uuid4()), request.model, model_name, request.prompt, Usage(input_tokens=0, output_tokens=0), int((time.perf_counter() - started) * 1000), attempts, "success")
             yield encode_sse({"type": "response.completed", "model": model_name})
             return
+
+        # 异常处理
         except Exception as exc:
             last_error = exc
+            # 不可重试情况
             if emitted or not is_retryable(exc):
                 break
+    # 全部失败：不抛异常，将错误编码成事件发送给客户端
     logger.exception("upstream stream failed", exc_info=last_error)
     record_trace(str(uuid4()), request.model, None, request.prompt, Usage(input_tokens=0, output_tokens=0), int((time.perf_counter() - started) * 1000), attempts, "failed", "upstream_stream_failed")
     yield encode_sse({"type": "response.failed", "error": "upstream_stream_failed"})
@@ -436,3 +467,4 @@ async def create_stream(request: LLMRequest) -> StreamingResponse:
 async def list_traces() -> list[CallTrace]:
     # 暴露调用审计记录，供成本分析与故障排查使用。
     return CALL_TRACES
+

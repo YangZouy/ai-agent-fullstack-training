@@ -1,8 +1,11 @@
 import os
 from collections import Counter
 from openai import OpenAI
+from dotenv import load_dotenv
 
+load_dotenv()
 MODEL = "deepseek-v4-flash"
+# 实验次数，每个参数组合，同一个问题会问模型3遍
 TRIALS = int(os.getenv("TRIALS", "3"))
 PROMPT = (
     "为一个“把模型错误统一归一化”的 Python 函数起更短的名字。"
@@ -17,7 +20,7 @@ client = OpenAI(
     max_retries=0,
 )
 
-
+# 核心采样函数 接收 temperature 和 top_p 作为参数。
 def sample(*, temperature: float, top_p: float) -> str:
     response = client.chat.completions.create(
         model=MODEL,
@@ -29,7 +32,7 @@ def sample(*, temperature: float, top_p: float) -> str:
     )
     return response.choices[0].message.content.strip()
 
-
+# 
 def run_case(*, label: str, temperature: float, top_p: float) -> None:
     values = [sample(temperature=temperature, top_p=top_p) for _ in range(TRIALS)]
     counts = Counter(values)
@@ -37,6 +40,7 @@ def run_case(*, label: str, temperature: float, top_p: float) -> None:
     print(f"\n[{label}] temperature={temperature}, top_p={top_p}")
     print(f"样本: {values}")
     print(f"去重数: {len(counts)}/{TRIALS}")
+    # 打印出频率最高的几个词极其次数
     print("Top 频次:", counts.most_common(5))
 
 

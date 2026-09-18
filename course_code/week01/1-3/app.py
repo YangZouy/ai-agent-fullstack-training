@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
-
+# 定义事件类型
 EventType = Literal[
     "run.started",
     "text.delta",

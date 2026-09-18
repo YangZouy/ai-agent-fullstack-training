@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
-
+# 定义数据契约
 class AgentAction(BaseModel):
     # 概念：先用 Pydantic 定义“期望输出结构”，把输出格式从“自然语言约定”
     # 升级成“代码里的显式契约”。这样既方便人阅读，也方便程序做自动校验。
@@ -19,6 +19,7 @@ class AgentAction(BaseModel):
 client = OpenAI(
     api_key=os.environ["DEEPSEEK_API_KEY"],
     base_url="https://api.deepseek.com",
+    # 关闭SDK的自动重试
     max_retries=0,
 )
 
@@ -34,6 +35,7 @@ response = client.chat.completions.create(
             "content": (
                 "你是 Agent 决策器。必须输出 json。"
                 "输出必须符合以下 JSON Schema：\n"
+                # 将schema塞进prompt里
                 f"{json.dumps(schema, ensure_ascii=False)}"
             ),
         },
@@ -57,8 +59,10 @@ try:
     # Pydantic 的价值：JSON mode 只能尽量保证“像 JSON”，但不能保证字段名、枚举值、
     # 类型和数值范围都完全符合业务要求；这里再做一次模型校验，才能把输出真正变成
     # “可直接进入业务逻辑”的结构化数据。
+    # 严格校验：字段名、类型、枚举值、数值范围正确？
     action = AgentAction.model_validate_json(raw_text)
 except ValidationError as exc:
     raise RuntimeError(f"MODEL_SCHEMA_INVALID: {exc}") from exc
 
+# 此时action是一个强类型的python对象
 print(action)

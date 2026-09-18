@@ -6,8 +6,10 @@ class DeepSeekChatAdapter(ModelAdapter):
     capabilities = ModelCapabilities(
         chat_completions=True,
         responses=False,
+        # ds不支持原生schema 这里直接采用JSON方式
         structured_output="json_mode",
         tool_calling=True,
+        # ds的thinking模式可能会忽略采样参数
         supports_temperature=True,  # 仅 non-thinking 生效
         supports_top_p=True,         # 仅 non-thinking 生效
     )
@@ -16,6 +18,7 @@ class DeepSeekChatAdapter(ModelAdapter):
         self.client = OpenAI(
             api_key=api_key,
             base_url="https://api.deepseek.com",
+            # 设置硬性超时时间
             timeout=30.0,
             max_retries=0,
         )
@@ -24,11 +27,13 @@ class DeepSeekChatAdapter(ModelAdapter):
         system = request.system
         kwargs: dict[str, Any] = {}
 
+        # 将Schema序列化后注入到prompt中
         if request.output_schema:
             system += (
                 "\n必须输出 json，并符合此 JSON Schema：\n"
                 + json.dumps(request.output_schema, ensure_ascii=False)
             )
+            # 开启response_format为json_object
             kwargs["response_format"] = {"type": "json_object"}
 
         if request.temperature is not None:

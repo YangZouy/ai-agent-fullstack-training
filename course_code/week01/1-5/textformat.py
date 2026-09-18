@@ -3,6 +3,7 @@ from openai import OpenAI
 
 client = OpenAI()
 
+# 使用responses.parse接口
 response = client.responses.parse(
     model="gpt-5.6",
     input=[
@@ -18,7 +19,10 @@ response = client.responses.parse(
             "content": "公司差旅报销需要哪些材料？",
         },
     ],
+    # JSON Schema约束
+    # 这里传递的是pydantic模型
     text_format=AgentDecision,
 )
 
+# 返回一个已经实例化好的AgentDecision对象
 decision = response.output_parsed

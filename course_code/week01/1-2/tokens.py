@@ -6,6 +6,7 @@
 
 from dataclasses import dataclass
 
+# frozon: True表示创建实例后就无法再修改属性
 @dataclass(frozen=True)
 class ContextBudget:
     """用不可变数据对象描述一次请求的上下文预算配置。
@@ -14,10 +15,13 @@ class ContextBudget:
     2. `frozen=True` 表示预算配置创建后不再被随意修改，减少运行时状态污染。
     3. 这也是把“配置”和“决策逻辑”分离开的一个基础动作。
     """
-
+    # 上下文窗口
     context_window: int
+    # 预留输出空间
     reserve_output: int
+    # 协议开销：API本身加的系统指令、角色标签等占用的token eg：system prompt tool schema定义等
     protocol_overhead: int
+    # 安全余量（预留缓冲，防止token计算误差导致超窗）
     safety_margin: int
 
     @property
@@ -39,7 +43,8 @@ class ContextBudget:
             raise ValueError("上下文预算配置无效")
         return value
 
-
+# estimated_input：预估此次业务输入token
+# budget：当前预算配置
 def choose_context_action(estimated_input: int, budget: ContextBudget) -> str:
     """根据预计输入规模，返回当前请求应该采取的上下文处理策略。
 

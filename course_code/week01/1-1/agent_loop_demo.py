@@ -4,11 +4,13 @@ import os
 import re
 import sys
 import time
-
-from openai import OpenAI
+from pathlib import Path
 
 from sandbox_runner import run_python_in_sandbox
 
+from dotenv import load_dotenv
+from openai import OpenAI
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 # DeepSeek 客户端。这里沿用 OpenAI SDK 的兼容调用方式。
 client = OpenAI(

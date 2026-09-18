@@ -1,5 +1,10 @@
 import os
 from openai import OpenAI
+from dotenv import load_dotenv
+from openai import OpenAI
+from pathlib import Path
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 client = OpenAI(
     api_key=os.environ["DEEPSEEK_API_KEY"],
