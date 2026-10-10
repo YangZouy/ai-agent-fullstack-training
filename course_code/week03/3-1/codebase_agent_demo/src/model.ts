@@ -1,4 +1,4 @@
-// 模型注册，接入 Gateway。
+// 模型注册，直连 DeepSeek（OpenAI-compatible）。
 import {
   createModels,
   createProvider,
@@ -10,12 +10,12 @@ import {
 } from "@earendil-works/pi-ai/api/openai-completions.lazy";
 
 export const gatewayModel: Model<"openai-completions"> = {
-  id: "agent-default",
+  id: "deepseek-chat",
   name: "Agent Default",
-  provider: "phase-gateway",
+  provider: "deepseek",
   api: "openai-completions",
   baseUrl: process.env.GATEWAY_BASE_URL
-    ?? "http://127.0.0.1:8000/v1",
+    ?? "https://api.deepseek.com/v1",
   reasoning: false,
   input: ["text"],
   cost: {
@@ -29,13 +29,13 @@ export const gatewayModel: Model<"openai-completions"> = {
 };
 
 const provider = createProvider({
-  id: "phase-gateway",
-  name: "Phase One Gateway",
+  id: "deepseek",
+  name: "DeepSeek",
   baseUrl: gatewayModel.baseUrl,
   auth: {
     apiKey: envApiKeyAuth(
-      "Gateway API key",
-      ["GATEWAY_API_KEY"],
+      "DeepSeek API key",
+      ["DEEPSEEK_API_KEY", "GATEWAY_API_KEY"],
     ),
   },
   models: [gatewayModel],
