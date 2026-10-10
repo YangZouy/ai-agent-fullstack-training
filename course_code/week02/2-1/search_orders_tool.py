@@ -5,23 +5,28 @@ from execution_context import ExecutionContext
 from order_schemas import OrderSummary, SearchOrdersInput, SearchOrdersOutput, ToolError
 from tool_definition import ToolDefinition
 
+# 工具函数 参数：输入（模型生成）
 async def search_orders(
     args: SearchOrdersInput,
+    # 运行时上下文，含user_id
     ctx: "ExecutionContext",
 ) -> SearchOrdersOutput:
     rows = await ctx.order_service.search(
+        # 安全边界：不让模型决定查谁的数据
         user_id=ctx.user_id,
         status=args.status,
         created_from=args.created_from,
         limit=args.limit,
     )
 
+    # 返回输出模型
     return SearchOrdersOutput(
+        # 输出校验
         orders=[OrderSummary.model_validate(row) for row in rows],
         total=len(rows),
     )
 
-
+# 工具定义
 SEARCH_ORDERS = ToolDefinition(
     name="search_orders",
     description=(
@@ -30,12 +35,17 @@ SEARCH_ORDERS = ToolDefinition(
     ),
     input_model=SearchOrdersInput,
     output_model=SearchOrdersOutput,
+    # 统一错误结构，方便上层处理
     error_model=ToolError,
     permission="order:read",
+    # 风险等级
     risk="low",
+    # 超时控制
     timeout_seconds=5,
     max_retries=2,
+    # 幂等：读操作重试无副作用
     idempotent=True,
+    # 执行函数
     handler=search_orders,
 )
 
@@ -85,6 +95,7 @@ class DemoOrderService:
             {
                 key: value
                 for key, value in record.items()
+                # 提出user_id，脱敏
                 if key != "user_id"
             }
             for record in records[:limit]
@@ -93,9 +104,11 @@ class DemoOrderService:
 
 async def main() -> None:
     args = SearchOrdersInput(status="pending", limit=10)
+    # 模拟运行时注入的上下文——身份、权限、链路等
     ctx = ExecutionContext(
         user_id="user_demo",
         tenant_id="tenant_demo",
+        # 不可变、可哈希、适合做集合判断
         permissions=frozenset({"order:read"}),
         trace_id="trace_demo_001",
         order_service=DemoOrderService(),

@@ -1,3 +1,6 @@
+"""
+工具定义
+"""
 @dataclass(frozen=True)
 class ToolDefinition:
     # 第一组：调用契约

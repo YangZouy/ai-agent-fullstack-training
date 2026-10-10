@@ -81,7 +81,9 @@ class ToolCall:
 class ExecutionContext:
     # 每次调用携带的可信身份与授权上下文，不接受模型自行声明权限。
     trace_id: str
+    # 服务端从JWT解析，可信
     user_id: str
+    # 服务端从会话获取，可信
     tenant_id: str
     permissions: frozenset[str]
     allowed_tools: frozenset[str]
@@ -89,7 +91,7 @@ class ExecutionContext:
     idempotency_key: str | None = None
     mode: PermissionMode = PermissionMode.DEFAULT
 
-
+# 每个工具的治理规则集中声明，运行时据此决策
 @dataclass(frozen=True)
 class ToolPolicy:
     # 工具治理策略：集中声明副作用、风险、权限、审批、超时与重试规则。
@@ -188,9 +190,9 @@ def _stable_value(value: StrictArgs | Mapping[str, Any] | Any) -> Any:
         return str(value)
     return value
 
-
+# 
 def _approval_digest(tool_name: str, arguments: StrictArgs | Mapping[str, Any]) -> str:
-    # 将工具名和规范化参数绑定；审批不能复用于不同金额、订单或原因。
+    # 将工具名和规范化参数绑定成一个哈希；审批不能复用于不同金额、订单或原因。
     canonical = json.dumps(
         _stable_value(arguments),
         ensure_ascii=False,
@@ -217,6 +219,7 @@ class ApprovalStore:
         # 以审批编号索引一次性凭证。
         self._items: dict[str, Approval] = {}
 
+    # 签发审批
     def approve(
         self,
         approval_id: str,
@@ -233,10 +236,11 @@ class ApprovalStore:
             user_id=user_id,
             tenant_id=tenant_id,
             tool_name=tool_name,
+            # 参数摘要
             digest=_approval_digest(tool_name, args),
             expires_at=time.time() + ttl_seconds,
         )
-
+    # 消费approval凭证前需要检验
     def consume(self, approval_id: str | None, prepared: PreparedCall, ctx: ExecutionContext) -> None:
         # 审批必须未使用、未过期，且与当前用户、租户、工具和参数完全一致。
         approval = self._items.get(approval_id or "")
@@ -357,14 +361,17 @@ class ToolRuntime:
         self.audit = audit
         self._locks: dict[str, asyncio.Lock] = {}
 
+    # 白名单，发现其
     def model_tools(self, ctx: ExecutionContext) -> list[dict[str, Any]]:
         # 只向模型暴露当前上下文下可调用的工具，避免能力泄露。
         return [
+            # 转换为json schema格式
             tool.to_model_tool()
             for tool in self._tools.values()
             if self.permissions.decide(tool, ctx) is not PermissionDecision.DENY
         ]
 
+    # 执行期
     async def before_tool_call(self, call: ToolCall, ctx: ExecutionContext) -> PreparedCall:
         # 门禁顺序：参数 -> 硬拒绝 -> plan -> 白名单/RBAC -> 预检 -> 审批 -> bypass -> allow。
         if not isinstance(call.id, str) or not call.id or not isinstance(call.name, str) or not call.name:
@@ -617,6 +624,7 @@ def build_governance() -> tuple[ToolRuntime, ApprovalStore, AuditSink]:
             name="get_order",
             description="查询订单当前状态和可退款金额。",
             parameters_model=GetOrderArgs,
+            # 给每个工具添加工具治理
             policy=ToolPolicy(
                 effect=Effect.READ,
                 risk=Risk.LOW,
@@ -639,6 +647,7 @@ def build_governance() -> tuple[ToolRuntime, ApprovalStore, AuditSink]:
                 requires_approval=True,
                 timeout_seconds=2,
                 max_retries=0,
+                # 非幂等
                 idempotent=False,
             ),
             handler=create_refund,

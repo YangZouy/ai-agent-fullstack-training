@@ -8,6 +8,7 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 # 验收模型的参数是否符合要求
+# 工具调用入参校验
 class SearchOrdersInput(StrictModel):
     status: Literal["pending", "paid", "shipped", "cancelled"] | None = None
     created_from: date | None = None
@@ -19,7 +20,7 @@ class SearchOrdersInput(StrictModel):
             raise ValueError("status 与 created_from 至少提供一个")
         return self
 
-
+# 输出模型
 class OrderSummary(StrictModel):
     order_id: str
     status: Literal["pending", "paid", "shipped", "cancelled"]
@@ -34,12 +35,17 @@ class SearchOrdersOutput(StrictModel):
 # 统一表达错误的方式
 class ToolError(StrictModel):
     code: Literal[
-        "INVALID_ARGUMENT", # 模型修正参数之后再次调用
-        "TOOL_NOT_FOUND",   # 工具不存在
-        "PERMISSION_DENIED", # 不能重试统一个调用，应该提示用户切换身份并停止执行
-        "APPROVAL_REQUIRED", # 需要用户审批
+        # 参数错误
+        "INVALID_ARGUMENT",
+        # 工具不存在
+        "TOOL_NOT_FOUND",
+        # 权限不足
+        "PERMISSION_DENIED",
+        # 需要用户审批
+        "APPROVAL_REQUIRED",
         "TIMEOUT", # 超时
-        "UPSTREAM_ERROR", # 上游错误， 只有满足幂等条件的时候， runtime 才能有限的重试
+        # 上游错误，只有满足幂等条件的时候，runtime 才能有限的重试
+        "UPSTREAM_ERROR",
         "INVALID_OUTPUT", # 业务工具违反的预先定义的返回协议，应记录工程故障，停止执行，不要猜测缺少的字段
     ]
     message: str

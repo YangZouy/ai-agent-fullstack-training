@@ -10,6 +10,7 @@ from typing import Any, Awaitable, Callable, Protocol
 from jsonschema import ValidationError, validate
 from mcp import Client, StdioServerParameters
 from mcp.client.stdio import stdio_client
+# 异步客户端类：以Async/await的方式调用OpenAI的API
 from openai import AsyncOpenAI
 
 from mcp_client_v1 import base_dir, result_payload
@@ -54,6 +55,7 @@ class DeepSeekProvider:
         self.client = AsyncOpenAI(
             api_key=api_key,
             base_url=os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
+            # 禁用SDK重试，重试应该由上层Agent Loop决定
             max_retries=0,
         )
 
@@ -170,7 +172,7 @@ class ToolRuntime:
         )
         return payload
 
-
+# MCP→LLM：
 async def discover_tools(
     client: Client,
     server_id: str,
@@ -179,6 +181,7 @@ async def discover_tools(
     result = await client.list_tools()
     definitions: dict[str, ToolDefinition] = {}
     for remote in result.tools:
+        # 命名空间化
         qualified_name = f"{server_id}_{remote.name}"
 
         async def handler(
@@ -188,8 +191,10 @@ async def discover_tools(
         ) -> dict[str, Any]:
             """调用原始 MCP 工具名，并将远端结果归一化为 Host Payload。"""
             response = await client.call_tool(remote_name, arguments)
+            # 将MCP中的callToolResult变成统一的结果
             return {"tool_call_id": tool_call_id, **result_payload(response)}
 
+        # 注册为host工具
         definitions[qualified_name] = ToolDefinition(
             name=qualified_name,
             description=remote.description or "",
@@ -218,6 +223,7 @@ async def run_agent(
         if reply.tool_call is None:
             raise RuntimeError("MODEL_REPLY_INVALID")
 
+        # 工具调用的结果
         print("LOOP", round_no, "tool_call", reply.tool_call.name)
         messages.append(
             {
@@ -246,6 +252,7 @@ async def run_agent(
                 "content": json.dumps(tool_result, ensure_ascii=False),
             }
         )
+        # 审计 结果已经进入模型上下文
         runtime.trace.append(
             {
                 "event": "result_written_to_context",

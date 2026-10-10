@@ -30,6 +30,8 @@ class ToolDefinition:
     handler: ToolHandler
 ##########  公开接口
     def to_model_tool(self) -> dict:
+        # 返回OpenAI Function Calling的标准格式
+        # 直接塞进OpenAI的tools参数就能用
         return {
             "type": "function",
             "function": {

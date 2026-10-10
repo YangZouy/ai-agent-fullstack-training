@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("tool_runtime")
 
-
+# 数据契约层
 class StrictModel(BaseModel):
     """所有跨越 Runtime 边界的数据都禁止携带未声明字段。"""
 
@@ -84,7 +84,8 @@ class ToolResultMessage(StrictModel):
     error: ToolError | None = None
     details: dict[str, Any] = Field(default_factory=dict)
 
-
+# 可信上下文与工具元数据
+# 安全边界——权限、租户、审批状态都来自业务系统，而非模型。
 @dataclass(frozen=True)
 class ExecutionContext:
     """由业务系统建立的可信上下文，绝不能由 LLM 参数构造。"""
@@ -129,6 +130,7 @@ class ToolDefinition:
     name: str
     version: str
     description: str
+    # 表示BaseModel的某个子类本身（类对象，而非实例）
     input_model: type[BaseModel]
     output_model: type[BaseModel]
     handler: Handler
@@ -155,6 +157,7 @@ class ToolSnapshot:
         return [tool.schema().to_provider_tool() for tool in self.tools.values()]
 
 
+# 按 (name, version) 去重注册，校验 name/version/timeout 合法。
 class ToolRegistry:
     """持有多个工具版本，并依据路由和启用开关生成快照。"""
 
@@ -283,7 +286,6 @@ class ToolRuntime:
             context.tenant_id,
         )
 
-
 async def query_weather(
     params: BaseModel, _context: ExecutionContext
 ) -> Mapping[str, Any]:
@@ -351,9 +353,8 @@ def build_registry() -> ToolRegistry:
     )
     return registry
 
-
 def parse_tool_calls(message: Any) -> list[ToolCall]:
-    """将 DeepSeek 的 OpenAI 兼容响应转换为 Runtime 的内部调用对象。"""
+    """将 DeepSeek 的 OpenAI 兼容响应转换为 Runtime 的内部调用对象ToolCall。"""
 
     parsed_calls: list[ToolCall] = []
     for call in message.tool_calls or []:
