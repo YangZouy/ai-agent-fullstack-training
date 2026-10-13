@@ -17,8 +17,7 @@ async def main():
     connection = ConnectionConfig(
         domain="127.0.0.1:8080",
         protocol="http",
-        # api_key=os.environ["OPEN_SANDBOX_API_KEY"],
-        api_key="your-secret-api-key",
+        api_key=os.environ["OPEN_SANDBOX_API_KEY"],
         # macOS 上 Docker Desktop 的 bridge 网络对宿主机不可路由，
         # server 代理模式会拿容器内网 IP 去连 execd 而超时；这里走宿主机映射端口。
         use_server_proxy=False,

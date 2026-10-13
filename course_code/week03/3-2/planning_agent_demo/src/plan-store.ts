@@ -48,6 +48,7 @@ export interface Plan {
   goal: string;
   constraints: string[];
   steps: PlanStep[];
+  // 计划修改次数
   revisionCount: number;
   maxRevisions: number;
 }

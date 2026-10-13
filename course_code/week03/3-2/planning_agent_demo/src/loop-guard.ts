@@ -54,6 +54,7 @@ export class LoopGuard {
   beforeToolCall(
     context: BeforeToolCallContext,
   ): { block?: boolean; reason?: string } {
+    // 给每个工具的参数 + 名称添加指纹（hash值）
     const fingerprint = this.fingerprint(context.toolCall.name, context.args);
     const count = this.state.actions.get(fingerprint) ?? 0;
     this.state.actions.set(fingerprint, count + 1);
