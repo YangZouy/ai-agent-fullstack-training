@@ -40,7 +40,9 @@ export class McpAdapterPlugin {
       if (server.trust !== "trusted") {
         throw new Error(`MCP server is not trusted: ${server.id}`);
       }
+      // 连接客户端
       const client = new Client({ name: "agent-tool-runtime", version: "2.0.0" }, { capabilities: {} });
+      // 连接传输层
       const transport = server.type === "stdio"
         ? new StdioClientTransport({ command: server.command, args: server.args, cwd: server.cwd })
         : new StreamableHTTPClientTransport(new URL(server.url), {
@@ -48,10 +50,12 @@ export class McpAdapterPlugin {
           });
       await client.connect(transport);
       this.connections.push({ client });
+      // 发现工具
       const discovered = await client.listTools();
 
       for (const remoteTool of discovered.tools) {
         const internalName = `mcp.${server.id}.${remoteTool.name}`;
+        // 注册工具
         registry.register({
           metadata: {
             internalName,

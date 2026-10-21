@@ -5,6 +5,7 @@ import { createGitDiffTool, createGitStatusTool } from "./git.js";
 import { createListFilesTool, createReadDirectoryTool, createReadFileTool, createSearchCodeTool } from "./fs-read.js";
 import { createApplyPatchTool, createWriteFileTool } from "./fs-write.js";
 import { createRunCommandTool, createRunTestTool } from "./exec.js";
+import { createOpenBlogTool } from "./open-blog.js";
 
 /** 十件仓库工具：六件读、两件写、两件执行，risk 直接决定策略与审批分支。 */
 export function createRepoTools(config: PlatformConfig, sandbox: Sandbox): ManagedTool[] {
@@ -19,5 +20,6 @@ export function createRepoTools(config: PlatformConfig, sandbox: Sandbox): Manag
     createRunCommandTool(sandbox, config),
     createGitDiffTool(sandbox),
     createGitStatusTool(sandbox),
+    createOpenBlogTool(sandbox),
   ];
 }

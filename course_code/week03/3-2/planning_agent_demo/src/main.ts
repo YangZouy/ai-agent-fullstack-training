@@ -64,4 +64,36 @@ if (plan) {
   console.log("计划：未创建");
 }
 
-console.log(`工具调用记录：${result.trace.length} 条`);
+const evidenceItems = result.session.evidence.list();
+if (evidenceItems.length > 0) {
+  console.log("\n===== 证据记录 =====");
+  for (const item of evidenceItems) {
+    console.log(`  ${item.id} [${item.kind}] step=${item.stepId}：${item.summary}`);
+  }
+}
+
+if (plan && plan.revisions.length > 0) {
+  console.log("\n===== 计划修订记录 =====");
+  for (const revision of plan.revisions) {
+    console.log(`v${revision.version}：${revision.reason}`);
+    for (const change of revision.changes) {
+      console.log(`  - ${change}`);
+    }
+  }
+}
+
+console.log("\n===== 工具调用审计 =====");
+const callsByTurn = new Map<number, Array<{ name: string; ok: boolean }>>();
+for (const event of result.trace) {
+  if (event.type !== "tool_execution_end" || !event.toolCallId) continue;
+  const calls = callsByTurn.get(event.turn) ?? [];
+  calls.push({ name: event.toolName ?? "?", ok: !event.isError });
+  callsByTurn.set(event.turn, calls);
+}
+for (const [turn, calls] of callsByTurn) {
+  console.log(`第 ${turn} 轮：`);
+  for (const call of calls) {
+    console.log(`  - ${call.name}${call.ok ? "" : "（执行失败）"}`);
+  }
+}
+console.log(`工具调用记录：${result.trace.length} 条事件`);

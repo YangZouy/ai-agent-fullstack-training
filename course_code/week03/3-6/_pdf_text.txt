@@ -1,0 +1,1657 @@
+===== PAGE 1 =====
+3.6PPT
+3.6LangGraph与Agent编排v2
+本节要解决的问题
+开发者提交⼀张上线⼯单，系统如何⾃动跑完从构建、单测到发布上线，并⽀持⼈⼯审批。
+发布流程图如下
+代码块
+START →  受理申请  →  [ 并⾏  ToolNode ×4: 构建 / 单测 / 安全扫描 / 依赖审计 ] 
+       →  汇合  →  变更等级路由 (L/M/H) 
+         ├─  L →  ⾃动放⾏ 
+         ├─  M →  Tech Lead 审批  (interrupt) 
+         └─  H →  Tech Lead + Security 双审批  (interrupt ×2) 
+       →  预发部署  →  冒烟测试  ── 失败 ──┐ 
+                       │ 成功          │ 
+                       ↓              ↓ 
+                    灰度  10% →  SRE 确认  (interrupt) →  监控 
+                       │ 异常  ↘                     ↗  正常 
+                       │       ⾃动回滚循环  ( ≤ 3 次 ) 
+                       ↓ 
+                    灰度  50% →  100% →  完成报告  →  END 
+这张图覆盖了LangGraph的6个核⼼机制：
+•
+图/节点/边/状态：每个⽅框是节点，⽅框间连线是边，⼯单本⾝在节点间流动的数据是状态
+•
+StateGraph条件分⽀与循环：变更等级路由、冒烟失败回退、灰度异常回滚，3个分⽀2个循环
+•
+ToolNode：四路并⾏检查的执⾏体
+•
+Interrupt：M/H审批和每次灰度推进的⼈⼯确认
+•
+Checkpoint：H级审批可能跨天，进程也得能停得下来+重启接得上
+•
+调试与可视化：Mermaid（⼀种"⽤⽂字描述流程图、⼯具⾃动画成图"的格式）、 astream 流
+式输出、 langgraph dev 本地HTTP服务
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+
+===== PAGE 2 =====
+⼀、区分概念
+名称 解决什么问题 不解决什么 本课⽤法
+LangGrap
+h
+⽤"状态+节点+边"把流程编排
+成可执⾏的图，调度分⽀/循环/中
+断/恢复
+不直接帮你写Prompt，不做
+模型抽象
+主⻆，本章全部能⼒都靠
+它
+LangChain 模型客⼾端+消息类型+⼯具接
+⼝的统⼀封装
+不管你怎么调度多步骤流程 配⻆：⽤它的 @tool 和
+消息类型
+AgentScop
+e
+
+另⼀套独⽴的Agent框架，模型/
+⼯具/协作都⾃⼰⼀套
+与LangGraph不是插件关系
+
+知道即可，不装
+Dify 可视化搭建Workflow的平台，
+拖拽节点
+不适合做"代码内编排+跨进程
+恢复"这种⼯程化要求⾼的事
+知道即可，不部署
+LangSmith
+/Langfuse
+观测平台，记录每⼀次调⽤的
+Trace（输⼊、输出、耗时）
+不参与执⾏；不会让任务具
+备"中断后继续"的能⼒
+可选接⼊，本章不依赖
+本章只⽤ langchain-openai / langchain-deepseek 做模型客⼾端、 langchain-core 
+负责消息类型、其余都靠LangGraph本体。
+⼆、业务拆解
+核⼼难点
+•
+不是API怎么调，⽽是业务步骤拆得对不对
+•
+先明确：串⾏/并⾏/分叉/停下等⼈
+拆解结果：7个业务步骤
+1. 受理申请：校验⼯单字段，准备上下⽂
+
+===== PAGE 3 =====
+2. 前置检查：构建、单测、安全扫描、依赖审计（可并⾏）
+3. 变更分级：按 patch_diff 判L/M/H
+◦
+判据：敏感词（auth、payment）+改动⻓度
+◦
+等级越⾼，审批越严
+4. 审批：按等级决定是否⼈⼯介⼊、⼏⼈介⼊
+5. 预发部署+冒烟：部署staging，跑冒烟；失败→打回修订，重跑
+6. 灰度推进：10%→50%→100%；每段SRE确认+健康监控
+7. 完成报告：汇总审批与阶段结果；⼯单标记最终状态（成功/被拒/回滚）
+⼀句话
+动⼿前先拆对流程，再写LangGraph代码。
+把7步业务映射到LangGraph的"对象"：
+业务概念 LangGraph对象
+⼯单本⾝（贯穿整个流程的共享数
+据）
+State：⼀个随流程⼀路传递的字典，每个节点从它读数据、把结果写
+回它
+每个步骤 节点（⼀个Python函数）
+步骤之间的依赖关系 边（ add_edge / add_conditional_edges ）
+流程总装 图（ StateGraph ）
+等待⼈⼯输⼊ Interrupt（ interrupt() + Command(resume=...) ）
+跨进程暂停与恢复 Checkpoint（ SqliteSaver /顶层⼯程⽤ AsyncSqliteSaver ）
+节点要调⽤的外部能⼒ ToolNode（⼀个"拿着⼯具清单、负责并发执⾏⼯具"的现成节点）
+关键认知：节点≠⼀次模型调⽤
+•
+节点=业务步骤
+•
+内部实现由节点决定：纯函数/调模型/跑⼯具
+
+===== PAGE 4 =====
+三、主线
+⽬标：先跑通最直主线
+受理→4项前置检查（全通过）→预发→冒烟→灰度10%→50%→100%→报告
+主线特征
+•
+⽆分⽀
+•
+⽆中断
+•
+⽆⼈⼯审批
+•
+全程⽆失败
+策略
+先跑通最直路径，后续逐步加机制。
+三步⾛
+1. AI⽣成代码：按提⽰词⽣成
+2. 跑测试验证
+3. 回读⽣成内容
+验收标准（AC）
+•
+写成可执⾏pytest测试⽤例
+•
+以测试全部通过为准
+•
+提⽰词按P1…P6编号，每节⼀份
+3.1提⽰词P1
+代码块
+任务：⽤  LangGraph ⽣成⼀个微服务发布审批流⽔线⼯程的 " 主线最⼩版 " 。 
+ 
+【⼯程⽬录】 release_pipeline/demos/01_minimal/ 
+【要⽣成的⽂件】 
+  state.py    状态  TypedDict 
+  nodes.py    7 个节点函数 
+  graph.py    StateGraph 装配 
+  app.py      ⼀⾏命令能跑完的  CLI 
+  tests/test_minimal.py  验收测试 
+ 
+【业务⽬标（本步骤只跑主线，不含任何分⽀）】 
+开发者提交⼯单  →  跑  4 项前置检查（构建 / 单测 / 安全扫描 / 依赖审计，全部直接通过） 
+→  预发部署  →  冒烟测试  →  灰度  10% →  灰度  50% →  灰度  100% →  输出发布报告。 
+ 
+【 State 字段（ TypedDict ，使⽤下列字段，不要新增）】 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+
+===== PAGE 5 =====
+class ReleaseState(TypedDict): 
+    ticket_id: str 
+    service: str 
+    version: str 
+    checks_passed: int 
+    stages_completed: NotRequired[list[str]] 
+    outcome: NotRequired[str] 
+    report_path: NotRequired[str] 
+ 
+【节点清单（ 7 个，函数命名锁定）】 
+intake          受理  + 跑  4 项检查（⽤同步内联函数模拟，不要调⼯具） 
+deploy_staging  往  stages_completed 追加  "staging" 
+smoke_test      追加  "smoke" 
+canary_10       追加  "canary_10" 
+canary_50       追加  "canary_50" 
+canary_100      追加  "canary_100" 
+finalize        写  reports/{ticket_id}.json ，置  outcome="released" 
+ 
+【边（线性，普通  add_edge ，不要条件路由）】 
+START →  intake →  deploy_staging →  smoke_test →  canary_10 →  canary_50 →  
+canary_100 →  finalize →  END 
+ 
+【 Checkpointer 】⽤  langgraph.checkpoint.memory.InMemorySaver() ，不要  SQLite 。 
+ 
+【验收  AC （写成  pytest ⽤例，每条⼀个  test_ 函数）】 
+AC-1: ainvoke 跑完后  outcome == "released" 
+AC-2: stages_completed 依次为  
+["staging","smoke","canary_10","canary_50","canary_100"] 
+AC-3: checks_passed == 4 
+AC-4: report_path ⽂件存在且能加载 
+ 
+【明确不做】 
+- 不引⼊  langchain ⼯具、不引⼊  @tool 、不引⼊  ToolNode 
+- 不做  interrupt 、不做  Command 
+- 不做条件路由（ add_conditional_edges ⼀次都不要出现） 
+- 不做循环（任何回边都不要） 
+- 不写多租⼾、权限、 Web UI 
+ 
+【⻛格】节点是函数不要类；状态⽤  TypedDict ；类型注解⻬全；不写注释； 
+所有⽂件总⾏数控制在  200 ⾏以内。 
+ 
+【依赖】 langgraph>=0.2 / Python 3.11+ / pytest 。⽆需  DeepSeek 密钥。 
+3.2跑起来验证
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+
+===== PAGE 6 =====
+代码块
+cd release_pipeline/demos/01_minimal 
+python app.py 
+实际输出（节选， ... 表⽰截断的⻓列表；截图前请清掉 reports/ ）：
+代码块
+▶  intake: {'checks_passed': 4, 'stages_completed': []} 
+▶  deploy_staging: {'stages_completed': ['staging']} 
+▶  smoke_test: {'stages_completed': ['staging', 'smoke']} 
+▶  canary_10: {'stages_completed': ['staging', 'smoke', 'canary_10']} 
+▶  canary_50: {'stages_completed': [..., 'canary_50']} 
+▶  canary_100: {'stages_completed': [..., 'canary_100']} 
+▶  finalize: {'outcome': 'released', 'report_path': '.../reports/DEMO-01.json'} 
+节点按边顺序推进，State增量可⻅，主线发布成功。
+•
+运⾏⽅式： app.py 以 stream_mode="updates" 逐步推送
+•
+每⾏格式： ▶  节点名：本步  State 更新 
+•
+⾸⾏ intake ： checks_passed=4 ，4项检查全通过； stages_completed=[] 
+•
+中间⾏： stages_completed 逐项追加
+staging →  smoke →  canary_10 →  canary_50 →  canary_100 ，与边顺序⼀致
+•
+末⾏ finalize ： outcome="released" ，报告写⼊ reports/DEMO-01.json 
+•
+测试结论： 4 passed 全部通过
+3.3三个关键概念
+1. State：⽤TypedDict声明
+demos/01_minimal/state.py 
+代码块
+class ReleaseState(TypedDict): 
+    ticket_id: str 
+    ... 
+    stages_completed: NotRequired[list[str]] 
+•
+声明字段与类型，便于检查拼写/类型
+1
+2
+1
+2
+3
+4
+5
+6
+7
+1
+2
+3
+4
+
+===== PAGE 7 =====
+•
+运⾏时不拦截额外字段
+•
+NotRequired ：初始可缺省，后续节点补
+2. 节点：只返回要更新的字段
+nodes.py 
+代码块
+def deploy_staging(state: ReleaseState) -> dict: 
+    return {"stages_completed": state["stages_completed"] + ["staging"]} 
+•
+接收整个State，但只返回增量
+•
+不能返回整个State：
+◦
+并⾏节点会同时更新同字段
+◦
+⽆reducer→并发更新错误
+◦
+有reducer→可能重复合并
+•
+与普通pipeline不同：
+◦
+pipeline：全量对象传递
+◦
+LangGraph：可并⾏、可重跑、每步存档→节点报增量，框架统⼀合并
+3. 图：构建器+compile
+graph.py 
+代码块
+builder = StateGraph(ReleaseState) 
+builder.add_node("intake", nodes.intake) 
+... 
+builder.add_edge(START, "intake") 
+builder.add_edge("intake", "deploy_staging") 
+... 
+graph = builder.compile(checkpointer=InMemorySaver()) 
+•
+StateGraph 是构建器， compile() 才得到可调⽤对象
+•
+compile() 只做结构检查，不查业务规则
+•
+必须传checkpointer： InMemorySaver 
+1
+2
+1
+2
+3
+4
+5
+6
+7
+
+===== PAGE 8 =====
+•
+每步存State快照，为后续 interrupt 恢复做准备
+•
+没有checkpointer， Command(resume=...) 会报错
+主线价值：得到⼀张能跑通的图。后续每加⼀个机制，都是往这张图上叠加。
+下⼀节：第⼀个机制——条件路由。
+四、分⽀：条件路由
+为什么加分⽀
+•
+“改⼀⾏README”≠“改auth模块”
+•
+不同⻛险，必须⾛不同审批路径
+本步做法
+•
+intake 后加⼀步：变更分级
+•
+依据： patch_diff （⼯单中的代码改动内容）
+•
+判定：L/M/H三级
+•
+按等级路由到不同审批节点
+4.1提⽰词P2
+代码块
+任务：在  demos/01_minimal/ 主线最⼩版的基础上， 
+新建  demos/02_routing/ ，加⼀个 " 变更等级路由 " 分⽀。 
+ 
+【本步骤业务⽬标】 
+⼯单受理后多⾛⼀步 " 变更分级 " ：根据  patch_diff 内容把变更打成  L / M / H 三档， 
+L ⾛⾃动放⾏， M ⾛  Tech Lead ⼀档审批， H ⾛双审批。 
+本步骤不引⼊  interrupt ，审批节点先⽤占位函数模拟通过。 
+ 
+【 State 在  01 基础上新增字段】 
+patch_diff: str 
+change_level: NotRequired[Literal["L","M","H"]] 
+approver_count: NotRequired[int] 
+ 
+【节点清单（在  01 的  7 个节点基础上新增  4 个）】 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+
+===== PAGE 9 =====
+classify_change    根据  patch_diff 计算等级，规则： 
+                   含  auth/payment/password/token →  "H" 
+                   len(diff) > 800 →  "M" 
+                   其余  →  "L" 
+approval_auto_L    approver_count=0 
+approval_lead_M    approver_count=1 
+approval_dual_H    approver_count=2 
+ 
+【边（关键变化）】 
+START →  intake →  classify_change 
+classify_change 接  add_conditional_edges ，路由函数： 
+  def route_by_level(state) -> Literal["L","M","H"]: return 
+state["change_level"] 
+映射： {"L":"approval_auto_L","M":"approval_lead_M","H":"approval_dual_H"} 
+三个审批节点都各⾃  add_edge →  deploy_staging 
+之后接  01 的  smoke_test →  canary_10 →  canary_50 →  canary_100 →  finalize →  
+END 
+ 
+【 Checkpointer 】沿⽤  InMemorySaver() 。 
+ 
+【验收  AC 】 
+AC-1: 短  diff →  change_level=="L", approver_count==0, outcome=="released" 
+AC-2: ⻓度  1200 的  diff →  change_level=="M", approver_count==1 
+AC-3: 含  "auth token" 的  diff →  change_level=="H", approver_count==2 
+AC-4: 三种  diff 都必须把  stages_completed 完整⾛完 
+ 
+【明确不做】 
+- 不引⼊  @tool 、 ToolNode （下⼀步） 
+- 不引⼊  interrupt 、 Command （更后⾯的步骤） 
+- 不引⼊循环、不引⼊  SQLite Checkpointer 、不接  DeepSeek 
+4.2跑起来验证
+代码块
+cd demos/02_routing 
+python app.py        # 三种  diff ⾛三条不同分⽀ 
+python -m pytest tests/ -v 
+输出演⽰：
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+1
+2
+3
+
+===== PAGE 10 =====
+R-02-L: ▶  classify_change: {'change_level': 'L'} →  ▶  approval_auto_L: 
+{'approver_count': 0} 
+R-02-M: ▶  classify_change: {'change_level': 'M'} →  ▶  approval_lead_M: 
+{'approver_count': 1} 
+R-02-H: ▶  classify_change: {'change_level': 'H'} →  ▶  approval_dual_H: 
+{'approver_count': 2} 
+→  4 passed in 0.21s 
+classify_change 判级，路由分流，L/M/H各⾛各的审批。
+4.3关键概念
+02_routing/graph.py ：
+代码块
+def route_by_level(state: ReleaseState) -> Literal["L", "M", "H"]: 
+    return state["change_level"] 
+ 
+builder.add_conditional_edges("classify_change", route_by_level, { 
+    "L": "approval_auto_L", 
+    "M": "approval_lead_M", 
+    "H": "approval_dual_H", 
+}) 
+业务需求：⻛险分级审批
+•
+L：⾃动放⾏
+•
+M：TechLead审批
+•
+H：TechLead+Security双审批
+•
+route_by_level ：读 change_level ，返回 L / M / H 
+1. 条件路由函数
+1
+2
+3
+4
+1
+2
+3
+4
+5
+6
+7
+8
+
+===== PAGE 11 =====
+add_conditional_edges(source, path_fn, path_map) 
+•
+source ：分叉点，节点执⾏完后开始选择
+•
+path_fn ：选路函数，只读State，返回路名
+•
+path_map ：路名→节点名
+•
+路由函数不改状态；要改State，就专⻔加节点
+2. 返回类型⽤ Literal[...] 
+•
+不是装饰，是图元信息
+•
+给 compile() 和Mermaid⽤
+•
+⽤ str 能编译，但分⽀标签会丢
+3. 分⽀末端汇合
+•
+每个分⽀各⾃ add_edge(...) →  deploy_staging 
+•
+多条边指向同⼀⽬标=汇合
+•
+与下⼀节ToolNode并⾏不同：
+◦
+ToolNode是节点内部并发
+◦
+图上只是⼀个普通节点
+五、并⾏：ToolNode
+问题
+•
+4项检查互不依赖，各⾃耗时
+•
+构建/单测/安全扫描/依赖审计
+•
+串⾏执⾏=4倍耗时
+需求
+•
+互不依赖的⼦任务同时开⼯
+⽅案
+•
+LangGraph现成执⾏器： ToolNode 
+•
+你提供⼯具清单，它负责并发执⾏
+
+===== PAGE 12 =====
+5.1提⽰词P3
+代码块
+任务：在  demos/02_routing/ 的基础上，新建  demos/03_toolnode/ ， 
+把 "4 项前置检查 " 从内联函数升级为  LangGraph 的  ToolNode 并⾏调度。 
+ 
+【本步骤业务⽬标】 
+构建、单测、安全扫描、依赖审计这  4 项检查互不依赖，要让它们在图上 " 并⾏执⾏ " 。 
+ 
+【 State 在  02 基础上新增字段】 
+messages: NotRequired[Annotated[list[AnyMessage], add_messages]] 
+checks:   NotRequired[list[CheckResult]] 
+ 
+【新增⽂件  tools.py ： 4 个  @tool 函数（ mock ，返回  JSON 字符串）】 
+build_service(service, version) 
+run_unit_tests(service) 
+security_scan(diff) 
+dependency_audit(service) 
+ 
+【节点变化】 
+intake 不再内联跑检查，改为返回⼀条  AIMessage ，⾥⾯带  4 个  tool_calls 
+新增节点： tool_checks = ToolNode(CHECK_TOOLS) 
+新增节点： collect_checks ，解析  ToolMessage →  checks 列表  + checks_passed 
+ 
+【边变化】 
+原： START →  intake →  classify_change →  ... 
+新： START →  intake →  tool_checks →  collect_checks →  classify_change →  ... 
+ 
+【验收  AC 】 
+AC-1: state["checks"] ⻓度为  4 ， name ⻬全 
+AC-2: state["checks_passed"] == 4 
+AC-3: 路由分⽀与  02 ⼀致 
+AC-4: state["messages"] 末尾⾄少  4 条  ToolMessage 
+ 
+【明确不做】 
+- 不引⼊  interrupt 、 Command 、 SQLite Checkpointer 、循环 
+- 4 个⼯具就是  4 个  mock 函数，不调真实⼤模型 
+5.2跑起来验证
+代码块
+cd demos/03_toolnode 
+python app.py        # 11 ⾏节点事件， 4 项检查全过 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+1
+2
+
+===== PAGE 13 =====
+python -m pytest tests/ -v 
+输出结果：
+代码块
+▶  intake: ['messages', 'stages_completed'] 
+▶  tool_checks: ['messages']                ←  ToolNode 内部并⾏了  4 个⼯具 
+▶  collect_checks: ['checks', 'checks_passed'] 
+▶  classify_change: ['change_level'] 
+▶  approval_dual_H: ['approver_count']      ←  路由选  H 分⽀ 
+▶  deploy_staging / smoke_test / canary_* / finalize 
+→  level=H checks_passed=4 
+→  4 项检查： ['build', 'unit_test', 'security_scan', 'dep_audit'] 
+•
+只打印字段名，不打印值（消息列表太⻓）
+•
+intake ：写⼊ messages ，含“调⽤4个⼯具”指令
+•
+tool_checks ：即ToolNode，只更新 messages 
+◦
+4个⼯具在⼀个节点内部并发完成
+◦
+图上只占⼀⾏，看不出4条线
+•
+collect_checks ：读4条ToolMessage→ checks + checks_passed 
+•
+终态：等级H，4项检查全过（构建/单测/安全扫描/依赖审计）
+5.3四个关键概念
+03_toolnode/nodes.py::intake ：
+代码块
+def intake(state: ReleaseState) -> dict: 
+    fanout = AIMessage( 
+        content="", 
+        tool_calls=[ 
+            {"name": "build_service", "args": {...}, "id": "call_build"}, 
+            {"name": "run_unit_tests", "args": {...}, "id": "call_unit"}, 
+            {"name": "security_scan", "args": {...}, "id": "call_scan"}, 
+            {"name": "dependency_audit", "args": {...}, "id": "call_audit"}, 
+        ], 
+    ) 
+    return {"messages": [fanout], "stages_completed": []} 
+3
+1
+2
+3
+4
+5
+6
+7
+8
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+
+===== PAGE 14 =====
+1. 并⾏从哪来
+•
+ToolNode不看图，只看 messages 末尾的 AIMessage 
+•
+⼀条 AIMessage 携带4个 tool_calls →⾃动并发执⾏4个⼯具
+•
+结果包成 ToolMessage 追加到 messages 
+•
+这就是ToolNode的契约
+03_toolnode/graph.py ：
+代码块
+from langgraph.prebuilt import ToolNode 
+from tools import CHECK_TOOLS 
+ 
+builder.add_node("tool_checks", ToolNode(CHECK_TOOLS)) 
+builder.add_edge("intake", "tool_checks") 
+builder.add_edge("tool_checks", "collect_checks") 
+2. ToolNode是什么
+•
+预实现好的节点对象，不⽤写函数
+•
+注册后⾃动：
+①取最后 AIMessage 
+②按 tool_calls 找⼯具
+③并发执⾏
+④结果包 ToolMessage 写回 messages 
+03_toolnode/nodes.py::collect_checks ：
+代码块
+def collect_checks(state: ReleaseState) -> dict: 
+    results: list[CheckResult] = [] 
+    for msg in state.get("messages", []): 
+        if not isinstance(msg, ToolMessage): 
+            continue 
+        payload = json.loads(msg.content) 
+        results.append(CheckResult(...)) 
+    return {"checks": results, "checks_passed": sum(1 for r in results if 
+r["passed"])} 
+1
+2
+3
+4
+5
+6
+1
+2
+3
+4
+5
+6
+7
+8
+
+===== PAGE 15 =====
+3. messages的reducer
+•
+必须声明： Annotated[list[AnyMessage], add_messages] 
+•
+reducer：多个节点写同⼀字段时，决定新旧值怎么合并
+•
+add_messages ：追加+按消息id去重
+•
+不加reducer： intake 的 AIMessage 会被后续节点覆盖
+4. 写messages：加⼀条，不是换⼀批
+•
+{"messages": [fanout]} →追加到列表末尾
+•
+再发 tool_calls 注意：⽤新id，或显式清空（ RemoveMessage ）
+•
+collect_checks 保留全部消息：审计需要
+当前进度
+主线+分⽀+⼯具并⾏已就位；审批仍是占位。
+下⼀节： interrupt 暂停等⼈批。
+六、中断与恢复：interrupt+Checkpoint
+增加三个主要逻辑
+1. 审批节点改真 interrupt() 
+2. Command(resume=...) 送回⼈⼯决定
+3. InMemorySaver →SQLiteCheckpointer，⽀持跨进程暂停/退出/重启/恢复
+代码块
+M 级：   approval_m ── ( 停在  INT-1 ，等  Tech Lead) ──→  批准  →  预发部署  … 
+                                                  └→  拒绝  →  finalize （结束） 
+ 
+H 级：   approval_h_lead ── ( 停在  INT-2A ，等  Tech Lead) ──→  批准  ─→ 
+        approval_h_security ── ( 停在  INT-2B ，等安全负责⼈ ) ──→  批准  →  预发部署  … 
+             任⼀处拒绝  →  finalize （结束） 
+6.1提⽰词P4
+1
+2
+3
+4
+5
+6
+
+===== PAGE 16 =====
+代码块任务：在  demos/03_toolnode/ 的基础上，新建  demos/04_hitl/ ， 
+把 "3 个审批节点的占位返回值 " 升级为真正的  interrupt 暂停  + Command 恢复  + 
+SQLite Checkpoint 跨进程持久化。 
+ 
+【本步骤业务⽬标】 
+M 级需  tech_lead 批准（ INT-1 ）； H 级需两段串⾏：先  tech_lead （ INT-2A ）再  security
+（ INT-2B ）。 
+图执⾏到审批节点要暂停并返回待批内容，⽤⼾稍后提交决定再继续； 
+进程退出后凭同⼀个  thread_id + 同⼀个  SQLite ⽂件能找回待批位置。 
+ 
+【 State 在  03 基础上新增字段】 
+class Approval(TypedDict): 
+    interrupt_id: Literal["INT-1","INT-2A","INT-2B"] 
+    role:   Literal["tech_lead","security"] 
+    action: Literal["approve","reject"] 
+    actor: str 
+    feedback: str 
+approvals: NotRequired[Annotated[list[Approval], add]]   # add reducer ：审批累加
+审计 
+ 
+【新增  checkpointer.py 】 
+⽤同步  SqliteSaver （ langgraph.checkpoint.sqlite ）。 
+@contextmanager open_checkpointer() ：读  env CHECKPOINT_DB （默认  
+./checkpoints_04.sqlite ）， 
+mkdir ⽗⽬录后  from_conn_string 打开， yield saver 。 
+ 
+【 nodes.py 三个审批节点改成真  interrupt 】 
+approval_m / approval_h_lead / approval_h_security 各⾃  decision = 
+interrupt({...}) ， 
+⽤  _as_approval(decision, iid, role) 把  resume 回来的  dict 转成  Approval ， 
+返回  {"approvals": [...]} （只放本次新增的⼀条）。 approval_auto_L 仍不  interrupt 。 
+ 
+【 graph.py 边变化】 
+三个审批节点后全改成  add_conditional_edges ： 
+  route_after_approval(state): 任⼀  approval.action=="reject" →  "reject" ，否则  
+"approve" 
+  approval_m        →  approve:deploy_staging / reject:finalize 
+  approval_h_lead   →  approve:approval_h_security / reject:finalize 
+  approval_h_security →  approve:deploy_staging / reject:finalize 
+ 
+【新增  app.py ： submit / status / approve 三个命令⾏】 
+待审批从  snapshot.tasks[*].interrupts[*].value 读取，不要⽤  __interrupt__ 旧写法。 
+ 
+【验收  AC 】 
+AC-1: M 级（⻓  diff ） invoke 后  snap.next==("approval_m",) ，
+interrupts[0].value["interrupt_id"]=="INT-1" 
+AC-2: resume approve 后  outcome=="released" ， approvals ⻆⾊ ==["tech_lead"] 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+
+===== PAGE 17 =====
+AC-3: H 级先停  INT-2A ， resume 后停  INT-2B ，再  resume 后  released ， approvals ⻓度
+==2 
+AC-4: 跨进程 —— 第⼀个  context 跑到  INT-1 暂停后关闭；新进程  open_checkpointer() 打开 
+      同⼀个  SQLite ， get_state 找回  ticket/next ， Command(resume) 后  released 
+AC-5: reject 短路： M 级  resume reject 后  outcome=="rejected" ， stages_completed==
+[] 
+ 
+【明确不做】 
+- 不引⼊循环 / 重试 / 回滚（下⼀步）；不引⼊可视化、 langgraph dev （下⼀步） 
+- 审批决定全部由  Command(resume=...) ⼈⼯传⼊，不调真实⼤模型 
+- 不⽤  AsyncSqliteSaver ，本格⽤同步  SqliteSaver 让  CLI 演⽰更直接 
+6.2跑起来验证
+代码块
+cd demos/04_hitl 
+python -m pytest tests/ -v 
+执⾏结果：
+代码块
+tests/test_hitl.py::test_ac1_pause_at_INT_1 PASSED 
+tests/test_hitl.py::test_ac2_resume_finishes_M PASSED 
+tests/test_hitl.py::test_ac3_H_two_sequential_interrupts PASSED 
+tests/test_hitl.py::test_ac4_cross_process_resume PASSED 
+tests/test_hitl.py::test_ac5_reject_short_circuits_to_finalize PASSED 
+5 passed 
+⼿动测试：
+代码块
+python app.py submit T-042 auth-svc 1.0.0 "$(python -c 'print("x"*1200)')" 
+python app.py status T-042 
+python app.py approve T-042 approve alice " 看起来没问题 " 
+python app.py status T-042 
+执⾏结果：
+42
+43
+44
+45
+46
+47
+48
+49
+50
+1
+2
+1
+2
+3
+4
+5
+6
+1
+2
+3
+4
+
+===== PAGE 18 =====
+代码块next=('approval_m',) outcome=None 
+⏸   待审批： 
+   INT-1 role=tech_lead ticket=T-042 
+after resume: next=() outcome=released 
+"stages_completed": ["staging","smoke","canary_10","canary_50","canary_100"] 
+6.3关键代码
+04_hitl/nodes.py::approval_m ：
+代码块
+def approval_m(state: ReleaseState) -> dict: 
+    decision = interrupt({ 
+        "interrupt_id": "INT-1", 
+        "role": "tech_lead", 
+        "ticket_id": state["ticket_id"], 
+        ...                       # 载荷⾥还带了  service / version ，此处省略 
+        "diff_preview": state.get("patch_diff", "")[:300], 
+        "actions": ["approve", "reject"], 
+    }) 
+    return {"approver_count": 1, 
+            "approvals": [_as_approval(decision, "INT-1", "tech_lead")]} 
+1. interrupt如何“停”
+•
+interrupt(payload) 抛出特殊信号，图停下
+•
+payload ：给审批⼈看的可JSON数据
+•
+⾸次执⾏：不会⾛到下⾯ return 
+•
+恢复执⾏： interrupt() 返回 Command(resume=...) 的值→ return 执⾏→写回
+State
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+
+===== PAGE 19 =====
+2. 最⼤的坑：恢复会从头重跑节点
+•
+LangGraph不保存Python调⽤栈，只保存State
+•
+恢复时整个节点函数重新执⾏
+•
+铁律： interrupt() 之前禁⽌副作⽤（写⽂件、发请求、扣款、应⽤补丁）
+•
+正确布局：
+◦
+patch_diff ：submit⼊⼝写⼊
+◦
+前序节点：只读、校验、分级
+◦
+审批节点：只展⽰+收决定
+◦
+部署/切流/写报告：放在审批通过后
+04_hitl/checkpointer.py ：
+代码块
+@contextmanager 
+def open_checkpointer(): 
+    db_path = Path(os.environ.get("CHECKPOINT_DB", 
+"./checkpoints_04.sqlite")).resolve() 
+    db_path.parent.mkdir(parents=True, exist_ok=True) 
+    with SqliteSaver.from_conn_string(str(db_path)) as saver: 
+        yield saver 
+3. interrupt⽣效条件
+•
+compile() 必须传checkpointer
+•
+调⽤必须带 thread_id 
+•
+thread_id ≠操作系统线程
+◦
+是“⼀次独⽴任务”的编号，相当于存档名
+◦
+同⽂件+同 thread_id →跨进程 get_state() 找回
+•
+thread_id 只是查找键，不是权限；审批权限仍需⼊⼝校验
+04_hitl/app.py::approve ：
+代码块
+snap = graph.get_state(cfg) 
+if not snap.next: 
+    print(" 该⼯单没在等待审批。 ") 
+1
+2
+3
+4
+5
+6
+1
+2
+3
+
+===== PAGE 20 =====
+    return 
+graph.invoke( 
+    Command(resume={"action": action, "actor": actor, "feedback": feedback}), 
+    config=cfg, 
+) 
+4. resume+reducer
+•
+恢复⽤ Command(resume=...) ，不是重提交任务
+•
+必须由“收到⼈⼯决定”的⼊⼝触发，不能submit后⾃动批准
+•
+approvals ⽤ add reducer：
+◦
+每个审批节点只返回⾃⼰这条
+◦
+LangGraph累加→完整审计轨迹
+◦
+route_after_approval 可 any(reject) →短路到 finalize 
+◦
+reject后 stages_completed == [] 
+七、循环与预算：回边重跑+计数兜底
+循环A：修订
+•
+审批新增 revise 
+•
+revise → begin_revision ： revision_count + 1 →普通边退回 intake 
+•
+重跑整条链路：检查→分级→审批
+•
+触顶：路由判 stop →终⽌，记 incomplete 
+循环B：灰度回滚
+•
+每档灰度部署后拉指标
+•
+不健康→ auto_rollback ： rollback_count + 1 ，游标回退
+•
+条件边退回 canary_step ，重跑同⼀阶段
+•
+触顶： abort →终⽌，记 rolled_back 
+循环让流程可重跑；预算计数防死循环。
+7.1提⽰词P5（⼤部分由AI⽣成）
+4
+5
+6
+7
+8
+
+===== PAGE 21 =====
+代码块任务：在  demos/04_hitl/ 的基础上，新建  demos/05_loops/ ，加两处 " 循环 " ， 
+并给每处循环配⼀个预算上限，保证不会⽆限打转。 
+ 
+【 State 在  04 基础上新增字段】 
+revision_count / max_revisions / rollback_count / max_rollbacks / canary_cursor
+（⼊⼝给值） 
+current_stage: NotRequired[dict] 
+metric_samples: NotRequired[Annotated[list[MetricSample], add]] 
+Approval.action 增  "revise" 、 "abort" ； outcome 增  "rolled_back" 、 "incomplete" 
+ 
+【新增⼯具】 deploy(stage,service,version) / query_metrics(service,stage) （ mock ，
+返回  JSON ） 
+ 
+【 nodes.py 新增 / 改动】 
+begin_revision: {revision_count+1, checks:[]} 
+canary_step: cursor=canary_cursor+1; decision=interrupt(INT-3-<stage>,role=sre,
+[approve,abort]); 
+             abort → {outcome:"rejected"}; 否则
+{canary_cursor:cursor,current_stage} 
+monitor_window: flaky 服务  canary_10 ⾸遍判不健康，该阶段回滚过即判健康； 
+                metric_samples 追加  + current_stage.status=healthy/unhealthy 
+auto_rollback: {rollback_count+1, canary_cursor:max(0,cursor-1), 
+                stages_completed+[f"rolled_back:{stage}"]} 
+ 
+【 graph.py ：循环靠 " 条件边指回更早的节点 " 】 
+route_approval 读  approvals[-1].action ： 
+  approve → deploy_staging / reject,abort → finalize / 
+  revise → (revision_count>=max_revisions? stop → finalize : begin_revision) 
+begin_revision →  add_edge 回  intake                 # 循环  A 
+deploy_staging →  canary_step →  route_after_canary →  monitor_window 
+monitor_window →  route_after_monitor {advance → canary_step, 
+unhealthy → auto_rollback, released → finalize} 
+auto_rollback  →  route_after_rollback {retry → canary_step, abort → finalize}   
+# 循环  B 
+ 
+【验收  AC 】 
+AC-1: revise 后  revision_count==1 且仍停在  approval_m 
+AC-2: revise → approve → 3×SRE 后  released ， revision_count==1 
+AC-3: max_revisions=1 连点两次  revise →  revision_count==1 、 next==() 、
+outcome==incomplete 
+AC-4: flaky+max_rollbacks=2 ， approve+4×SRE 后  rollback_count==1 、 released 、含  
+rolled_back: 项 
+AC-5: flaky+max_rollbacks=0 →  rollback_count==1 、 outcome==rolled_back 、 next==() 
+ 
+【明确不做】不引⼊可视化（下⼀步）；不接真实模型 /metrics ； approvals 、 metric_samples 
+⽤  add reducer 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+
+===== PAGE 22 =====
+7.2跑起来验证
+代码块
+cd demos/05_loops 
+python -m pytest tests/ -v   # 5 条  AC 
+python app.py                # 两个  demo 场景，看循环真正⽣效 
+测试结果：
+代码块
+AC-1..AC-5  5 passed 
+ 
+== 场景  A ：修订循环（先  revise 再  approve ） ==   revision_count=1 outcome=released 
+== 场景  B ：灰度回滚后重试（ flaky 服务） ==        rollback_count=1  outcome=released 
+•
+5 passed ：P5五条AC全部通过，含“修订上限耗尽”“回滚预算为零”等边界。
+•
+场景A：先 revise →回到 intake 重跑； revision_count=1 ，最终 released 。
+•
+场景B：flaky服务⾸次进⼊ canary_10 判不健康→回滚⼀次； rollback_count=1 ，最
+终 released 。
+•
+说明： canary_10 是10%流量档位； flaky 是演⽰服务名，⽤于稳定触发回滚路径。
+7.3四个关键点
+05_loops/graph.py ：
+代码块
+b.add_edge("begin_revision", "intake")          # 循环  A ：普通边指回更早的节点 
+ 
+b.add_conditional_edges("monitor_window", route_after_monitor, { 
+    "advance": "canary_step",                   # 同阶段健康  →  推进 
+    "unhealthy": "auto_rollback",               # 不健康  →  回滚 
+    "released": "finalize", 
+}) 
+b.add_conditional_edges("auto_rollback", route_after_rollback, { 
+    "retry": "canary_step",                     # 循环  B ：回滚后重跑同⼀阶段 
+    "abort": "finalize", 
+}) 
+1. 循环⽆需专⽤API
+1
+2
+3
+1
+2
+3
+4
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+
+===== PAGE 23 =====
+•
+add_edge("begin_revision", "intake") 指回已⾛过节点
+•
+节点写状态，路由读状态
+•
+每圈计数递增→路由适时不再选回边
+2. ⽆预算=死循环
+代码块
+def route_approval(state: ReleaseState) -> 
+Literal["approve","revise","reject","stop"]: 
+    last = state.get("approvals", [{}])[-1].get("action") 
+    if last == "approve": return "approve" 
+    if last in ("reject", "abort"): return "reject" 
+    if state["revision_count"] >= state["max_revisions"]: 
+        return "stop"          # 预算耗尽  →  finalize ，不再  revise 
+    return "revise" 
+•
+每循环配计数+ >= max 兜底
+•
+⽰例： route_approval 判 revision_count >= max_revisions → stop 
+•
+recursion_limit 是安全阀，抛 GraphRecursionError ，⾮业务收尾
+•
+业务上限必须⾃⼰写成路由
+05_loops/nodes.py::canary_step ：
+代码块
+def canary_step(state: ReleaseState) -> dict: 
+    cursor = state["canary_cursor"] + 1        # ←  先算，但不提交 
+    stage = STAGE_BY_CURSOR[cursor] 
+    decision = interrupt({"interrupt_id": f"INT-3-{stage}", "role": "sre", 
+...}) 
+    ... 
+    return {"canary_cursor": cursor, ...}      # ←  只有  return 时  cursor 才写进  
+State 
+3. interrupt在循环⾥的坑
+•
+恢复时节点从头重跑
+•
+cursor = canary_cursor + 1 是局部变量， return 才写State→不会重复+1
+•
+前提： interrupt() 前⽆副作⽤
+1
+2
+3
+4
+5
+6
+7
+1
+2
+3
+4
+5
+6
+
+===== PAGE 24 =====
+•
+deploy 放在审批通过后
+4. 回滚如何原地重试
+•
+canary_cursor ：1=10%，2=50%，3=100%
+•
+auto_rollback 游标-1→下圈 canary_step +1→同⼀stage
+•
+stages_completed 追加 rolled_back:canary_10 
+•
+游标+回滚计数→原地重试，最多N次
+总结
+主线+分⽀+并⾏+中断+循环全部就位。下⼀节：调试与可视化。
+⼋、调试与可视化
+1. draw_mermaid() ：⽣成可读流程图（⽂本+可选PNG）
+2. graph.stream(..., stream_mode="updates") ：逐步查看“哪个节点、返回什么增
+量”
+3. graph.get_state(config) ：查看任意thread当前快照+待批interrupt
+4. langgraph dev ：挂到本地Studio，UI内approve/reject
+8.1提⽰词P6
+代码块
+任务：在  demos/05_loops/ 的基础上，新建  demos/06_visualize/ ， 
+** 代码结构完全保留 **（图就是  05 那张），只加  4 个观察  / 调试⼊⼝。 
+ 
+【新增  visualize.py 】 
+- mermaid_text(graph) →  graph.get_graph().draw_mermaid() 
+- export_mermaid(graph, out_dir) ：写  .mmd ⽂件； try draw_mermaid_png() 写  .png ， 
+  失败把异常塞  png_status 字段但  .mmd ⼀定保留 
+- stream_nodes(graph, initial, config) ： graph.stream(..., 
+stream_mode="updates") 遍历， 
+  普通  {node: update} →  追加  node ； "__interrupt__" 键  →  对每个  intr.value 追加 
+  f" ⏸  {intr.value['interrupt_id']}" 。 
+ 
+【新增  studio_graph.py （⼀⾏包装）】 
+from graph import build_graph 
+graph = build_graph(None)        # langgraph dev ⾃⼰注⼊内存  checkpointer 
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+
+===== PAGE 25 =====
+ 
+【新增  langgraph.json 】 
+{ "graphs": { "release_06": "./studio_graph.py:graph" }, "dependencies": 
+["."], "env": ".env" } 
+ 
+【改  app.py ：新增两个⼦命令】 
+- visualize     →  print Mermaid ⽂本  + 报  .mmd / .png 路径 
+- watch <tid>   →  ⽤  stream_nodes 跑⼀次，打印执⾏顺序 
+ 
+【验收  AC 】 
+AC-1: mermaid_text ⾄少含  "graph TD" / "intake" / "tool_checks" / "canary_step" 
+/ 
+      "auto_rollback" / "begin_revision" / "finalize" 
+AC-2: export_mermaid 之后  .mmd ⽂件存在； info 字典含  png_status 字段 
+AC-3: M 级未批⼯单  stream_nodes 结果前  4 个  = [intake, tool_checks, 
+collect_checks, 
+      classify_change] 、末尾  = " ⏸  INT-1" ，且列表⾥ ** 没有 ** "approval_m" 
+AC-4: submit 后  get_state().next==("approval_m",) 且  
+tasks[0].interrupts[0].value 
+      ["interrupt_id"]=="INT-1" ； resume approve 后下⼀处待批  id == "INT-3-
+canary_10" 
+AC-5: studio_graph.graph 可  import 且⾮空； langgraph.json 中  graphs.release_06 正
+确 
+ 
+【明确不做】 
+- 不修改  05 的图、节点、 State ，只加观察⼊⼝ 
+- CI 不真起  langgraph dev （不依赖端⼝）， AC-5 只验配置可加载 
+8.2跑起来验证
+代码块
+cd demos/06_visualize 
+python -m pytest tests/ -v       # 5 条  AC 
+python app.py visualize          # 看  Mermaid ⽂本与  .mmd / .png 路径 
+python app.py watch 06-demo-001  # 看⼀次 " 跑到中断为⽌ " 的节点触发序列 
+执⾏结果：
+代码块
+graph TD; 
+    intake(intake) 
+    tool_checks(tool_checks) 
+    collect_checks(collect_checks) 
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+1
+2
+3
+4
+1
+2
+3
+4
+
+===== PAGE 26 =====
+    classify_change(classify_change) 
+    approval_m(approval_m) 
+    begin_revision(begin_revision) 
+    canary_step(canary_step) 
+    monitor_window(monitor_window) 
+    auto_rollback(auto_rollback) 
+    finalize(finalize) 
+    ... 
+5
+6
+7
+8
+9
+10
+11
+12
+
+===== PAGE 27 =====
+
+===== PAGE 28 =====
+approve
+revise
+reject
+revise
+approve
+reject
+revise approve
+reject
+retry
+abort
+monitor
+L
+H
+M
+unhealthy
+advance
+released
+__start__
+intake
+tool_checks
+collect_checks
+classify_change
+approval_auto_Lapproval_m
+approval_h_lead
+approval_h_security
+begin_revision deploy_staging
+canary_step
+monitor_window
+auto_rollback
+ﬁnalize
+__end__
+视图
+
+===== PAGE 29 =====
+watch 把stream_mode转成执⾏顺序：
+代码块
+执⾏顺序：  intake →  tool_checks →  collect_checks →  classify_change →  ⏸  INT-1 
+执⾏：
+代码块
+# 06 ⽬录下需要装  langgraph-cli[inmem] ，已在顶层  requirements-dev.txt 给出 
+pip install -r ../../requirements-dev.txt 
+ 
+cd demos/06_visualize 
+langgraph dev            # ⾃动开  http://127.0.0.1:8123 
+8.3可视化四件事
+06_visualize/visualize.py::mermaid_text ：
+代码块
+def mermaid_text(graph) -> str: 
+    return graph.get_graph().draw_mermaid() 
+1. Mermaid来⾃已编译的图
+•
+draw_mermaid() 从compile后的图对象⽣成，不改源码
+•
+改边/加节点/调路由，图⾃动更新
+•
+条件边标签来⾃路由返回类型 Literal[...] 
+•
+.mmd 先落盘，PNG在线渲染失败不丢⽂本
+06_visualize/visualize.py::stream_nodes ：
+代码块
+for update in graph.stream(initial, config=config, stream_mode="updates"): 
+    for node, payload in update.items(): 
+        if node == "__interrupt__": 
+1
+1
+2
+3
+4
+5
+1
+2
+1
+2
+3
+
+===== PAGE 30 =====
+            for intr in payload: 
+                fired.append(f" ⏸  {intr.value['interrupt_id']}") 
+        else: 
+            fired.append(node) 
+2. stream_mode="updates" 的interrupt特殊⾏为
+•
+正常事件： { 节点名 : 状态增量 } 
+•
+触发 interrupt() 时：改发 {"interrupt": [Interrupt(...)]} 
+•
+⽇志⾥“没看到approval_m”≠没执⾏，多半是停在 interrupt() 
+•
+排查：看 interrupt 或 get_state 
+06_visualize/app.py::status （沿⽤04的 get_state ）：
+代码块
+snap = g.get_state(cfg) 
+print(snap.next)                      # 待执⾏节点，例如  ("approval_m",) 
+for t in snap.tasks:                  # 每个  task 携带它的  interrupts 
+    for intr in (t.interrupts or []): 
+        print(intr.value["interrupt_id"]) 
+print(snap.values["outcome"])         # 完整  state 字典 
+3. get_state() 跨进程查看状态
+•
+返回 StateSnapshot ，关键字段：
+◦
+values ：当前完整State
+◦
+next ：接下来要执⾏的节点
+◦
+tasks ：待执⾏任务，含 interrupts 
+•
+读SQLite，任何进程/时刻可查，⽆需图在跑
+•
+异步版 aget_state() 需 await 
+06_visualize/langgraph.json 与 studio_graph.py ：
+代码块
+# studio_graph.py 
+from graph import build_graph 
+graph = build_graph(None)     # 不带  checkpointer 
+4
+5
+6
+7
+1
+2
+3
+4
+5
+6
+1
+2
+3
+
+===== PAGE 31 =====
+4. langgraph dev 注⼊宿主checkpointer
+•
+读 langgraph.json → studio_graph.py:graph 
+•
+build_graph(None) ：核⼼图不变，checkpointer交给宿主
+•
+⽣产仍⽤ app.py +SQLite，互不影响
+•
+注意：dev启⽤ blockbuster ，阻塞I/O需⽤同步 def 
+九、三个实际⼯程问题
+问题⼀：恢复时，审批节点从头再执⾏
+•
+现象：resume后节点函数从头重跑，不是从 interrupt() ⾏继续
+•
+原因：LangGraph只保存State和检查点，不保存Python调⽤栈
+•
+⻛险： interrupt() 前的副作⽤（部署、写⽂件、扣款）可能重复执⾏
+•
+避免：副作⽤放到审批通过后的独⽴节点；外部请求⽤幂等键
+•
+提醒：恢复会重跑代码，不会撤销已发⽣的外部操作
+问题⼆：复⽤旧checkpoint污染测试
+•
+现象：单独跑通过，重复跑或并⾏跑状态异常（如 canary_cursor 停在1，预期3）
+•
+原因：同⼀SQLite+同⼀ thread_id ，读到上⼀轮旧checkpoint
+•
+避免：每会话⽤⼲净checkpointDB；不同⽤例⽤不同 thread_id ；fixture清理
+•
+提醒：测试不仅要准备输⼊，也要准备⼲净的持久化状态
+问题三：异步节点⾥阻塞I/O卡住事件循环
+•
+现象：命令⾏正常， langgraph dev 中 finalize 写报告被blockbuster拦截
+•
+原因： async def 中执⾏同步⽂件I/O（ os.mkdir 、 Path.write_text ），阻塞事件循
+环
+•
+避免：短同步操作写成普通 def （线程池执⾏）；必须异步则改⽤异步I/O；多环境验证
+•
+提醒： async def ≠内部操作异步，逐项检查I/O是否阻塞
+本章⼩结：把业务流程变成可执⾏、可恢复的图
+
+===== PAGE 32 =====
+演进路径
+主线→条件分⽀→ToolNode并⾏→⼈⼯审批+Checkpoint→带预算循环→可视化
+六条主线
+1. State存共享数据；节点⼲活并返回增量；边决定下⼀步。
+2. 条件路由选路径，节点执⾏⼯作。先想清业务规则，再映射到节点和边。
+3. 并⾏更新、列表累加要配reducer（如messages、审批记录）。
+4. interrupt() 等⼈，Checkpoint保存恢复； Command(resume=...) 送回决定；恢复时节
+点从头重跑。
+5. 循环必须有业务上限； recursion_limit 只是安全阀，不能替代“最多修订⼏次”。
+6. 跑通≠可靠：查副作⽤重放、测试状态隔离、异步I/O是否正确。
+⼯程结构
+•
+六个demo：各加⼀个机制
+•
+顶层 release_pipeline/ ：合成完整案例
+•
+复现：从 demos/01_minimal/ 开始，逐步跑测试、看更新与检查点
+最终要能说清
+•
+为什么这样分⽀
+•
+在哪⾥等待⼈⼯
+•
+状态怎样恢复
+•
+异常时如何安全结束
+AI辅助vs⼯程师把关
+AI可协助⽣成 state.py 、节点、图装配、测试初稿
+⼯程师必须确认
+1. 明确边界：State字段、节点、⼯具、明确不做什么
+2. 定义AC：覆盖业务规则、拒绝、超限等边界
+3. 检查持久化测试：起点⼲净，旧状态不影响断⾔
+4. 审查中断前后副作⽤：恢复重跑不会重复部署/发消息/提交
+
+===== PAGE 33 =====
+5. 验证实际运⾏形态：本地、pytest、服务/Studio都要验
+AI把明确结构写成代码；结构是否正确、异常是否安全、结果是否符合预期，由⼯程师负责。

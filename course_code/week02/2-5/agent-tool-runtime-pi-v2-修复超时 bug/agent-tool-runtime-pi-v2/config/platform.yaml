@@ -1,20 +1,22 @@
-# 网关相关配置
+# 网关相关配置（直连 DeepSeek OpenAI 兼容 API）
 gateway:
-  base_url: http://127.0.0.1:8000/v1
+  base_url: https://api.deepseek.com/v1
+  # 直接把密钥写在配置里；留空则回退到 api_key_env 指向的环境变量
+  api_key: sk-请替换成你的DeepSeek密钥
   api_key_env: GATEWAY_API_KEY
   prompt_name: agent.default
   prompt_version: v2
-# 用网关哪个模型 预算价格
+# 用哪个模型 预算价格
 model:
-  provider_id: phase-gateway
-  id: agent-default
-  name: DeepSeek via Phase-One Gateway
-  context_window: 1000000
+  provider_id: deepseek
+  id: deepseek-chat
+  name: DeepSeek Chat (direct)
+  context_window: 64000
   max_tokens: 4096
-  # 使用峰值价格作为预算上限，单位：美元 / 1M Token。
-  input_per_million: 0.44
-  output_per_million: 1.32
-  cache_read_per_million: 0.014
+  # deepseek-chat 官方价格作为预算上限，单位：美元 / 1M Token。
+  input_per_million: 0.27
+  output_per_million: 1.10
+  cache_read_per_million: 0.07
 # 运行时相关配置
 runtime:
   database: ../data/platform.db

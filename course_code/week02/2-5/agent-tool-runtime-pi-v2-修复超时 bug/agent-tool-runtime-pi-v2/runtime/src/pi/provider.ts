@@ -2,10 +2,21 @@ import {
   createModels,
   createProvider,
   envApiKeyAuth,
+  type ApiKeyAuth,
   type Model,
 } from "@earendil-works/pi-ai";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import type { PlatformConfig } from "../config.js";
+
+// 直接用配置里的静态 key 构造 ApiKeyAuth，避免依赖环境变量。
+function configApiKeyAuth(key: string): ApiKeyAuth {
+  return {
+    name: "DeepSeek API key (platform.yaml)",
+    async resolve() {
+      return { auth: { apiKey: key } };
+    },
+  };
+}
 
 export function createGatewayProvider(config: PlatformConfig) {
   const model: Model<"openai-completions"> = {
@@ -27,10 +38,13 @@ export function createGatewayProvider(config: PlatformConfig) {
   };
   return createProvider({
     id: config.model.providerId,
-    name: "Phase-One LiteLLM Gateway",
+    name: "DeepSeek API",
     baseUrl: config.gateway.baseUrl,
     auth: {
-      apiKey: envApiKeyAuth("Phase-One Gateway API key", [config.gateway.apiKeyEnv]),
+      // 优先读配置里的 api_key；未配置时回退到 api_key_env 指向的环境变量
+      apiKey: config.gateway.apiKey
+        ? configApiKeyAuth(config.gateway.apiKey)
+        : envApiKeyAuth("DeepSeek API key", [config.gateway.apiKeyEnv]),
     },
     models: [model],
     api: openAICompletionsApi(),

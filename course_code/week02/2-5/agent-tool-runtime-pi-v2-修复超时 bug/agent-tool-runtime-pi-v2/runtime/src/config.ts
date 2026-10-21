@@ -8,6 +8,7 @@ import type { PolicyConfig } from "./domain.js";
 export interface PlatformConfig {
   gateway: {
     baseUrl: string;
+    apiKey: string;
     apiKeyEnv: string;
     promptName: string;
     promptVersion: string;
@@ -36,6 +37,7 @@ export function loadConfig(path = process.env.PLATFORM_CONFIG ?? "../config/plat
   return {
     gateway: {
       baseUrl: process.env.GATEWAY_BASE_URL ?? raw.gateway.base_url,
+      apiKey: raw.gateway.api_key ?? "",
       apiKeyEnv: raw.gateway.api_key_env,
       promptName: raw.gateway.prompt_name,
       promptVersion: raw.gateway.prompt_version,
