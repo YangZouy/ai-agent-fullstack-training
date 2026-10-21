@@ -3,4 +3,5 @@ ex_ctx/*
 /docs/
 node_modules/
 dist/
+__pycache__/
 .workbuddy/
