@@ -1,0 +1,8 @@
+test_after (test_session.SessionTests.test_after) ... ok
+test_at (test_session.SessionTests.test_at) ... ok
+test_before (test_session.SessionTests.test_before) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK

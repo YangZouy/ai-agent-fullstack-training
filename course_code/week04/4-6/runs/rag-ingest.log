@@ -1,0 +1,19 @@
+[加载] 12 个文档（来源：D:\study\ai-agent-fullstack-training\course_code\week04\4-6\rag\corpus）
+  - app\auth.py  (code)
+  - app\config.py  (code)
+  - app\session.py  (code)
+  - docs\faq.md  (doc)
+  - docs\payment-session.md  (doc)
+  - docs\session-rules.md  (doc)
+  - docs\testing-guide.md  (doc)
+  - history\2026-09-12-expiry-bug.md  (doc)
+  - history\2026-10-06-logout-request.md  (doc)
+  - pdf\PRD-login-2.5.0.pdf  (pdf)
+  - tables\session-matrix.csv  (table)
+  - web\release-notes-2.4.0.html  (web)
+[分块] 36 个节点
+[完成] 向量库 + BM25 索引已写入 D:\study\ai-agent-fullstack-training\course_code\week04\4-6\rag\storage（用时 2.6s）
+  查询请用：python query.py --question "..."
+Generating embeddings:   0%|          | 0/36 [00:00<?, ?it/s]D:\pyenv\pyenv-win\versions\3.13.13\Lib\site-packages\huggingface_hub\utils\tqdm.py:176: UserWarning: Cannot enable progress bars: environment variable `HF_HUB_DISABLE_PROGRESS_BARS=1` is set and has priority.
+  warnings.warn(
+Generating embeddings:  28%|██▊       | 10/36 [00:01<00:03,  6.94it/s]Generating embeddings:  56%|█████▌    | 20/36 [00:01<00:01, 13.93it/s]Generating embeddings:  83%|████████▎ | 30/36 [00:01<00:00, 19.63it/s]Generating embeddings: 100%|██████████| 36/36 [00:02<00:00, 20.93it/s]Generating embeddings: 100%|██████████| 36/36 [00:02<00:00, 16.73it/s]

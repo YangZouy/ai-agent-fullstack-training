@@ -1,0 +1,253 @@
+﻿
+> codebase-agent-pi-v2@2.0.0 test
+> vitest run tests/unit
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90mD:/study/ai-agent-fullstack-training/course_code/week04/4-6/project4/v2[39m
+
+node.exe : (node:22380) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+At line:1 char:1
++ & "C:\nvm4w\nodejs/node.exe" "C:\nvm4w\nodejs/node_modules/npm/bin/np ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:22380) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m tests/unit/kg_loop-guard.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_registry.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_decider.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 236[2mms[22m[39m
+(node:6152) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26056) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25456) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4960) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25432) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2252) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m tests/unit/kg_runtime.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 282[2mms[22m[39m
+(node:1536) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26388) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:9004) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24884) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26280) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m tests/unit/kg_prompt.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 943[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_memory.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 969[2mms[22m[39m
+ [31m❯[39m tests/unit/kg_sandbox.test.ts [2m([22m[2m10 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 1627[2mms[22m[39m
+     [32m✓[39m 拒绝工作区之外的相对路径与绝对路径[32m 148[2mms[22m[39m
+[31m     [31m×[31m 符号链接指向工作区外时按真实路径判定[39m[32m 241[2mms[22m[39m
+     [32m✓[39m deny_read 拦读写两侧，deny_write 只拦写[32m 96[2mms[22m[39m
+     [32m✓[39m allow_write 在 deny_write 上开受控口子：只放行点名的目录[32m 96[2mms[22m[39m
+     [32m✓[39m 越界在工具层被拒，并留下带错误码的审计记录[32m 146[2mms[22m[39m
+     [32m✓[39m 密钥类环境变量不进子进程[32m 99[2mms[22m[39m
+     [33m[2m✓[22m[39m 子进程 cwd 落在工作区根目录 [33m 308[2mms[22m[39m
+[31m     [31m×[31m 超时后终止进程组并回报 timed_out[39m[32m 104[2mms[22m[39m
+     [32m✓[39m 子进程输出超过采集上限时丢弃后续内容[32m 291[2mms[22m[39m
+[31m     [31m×[31m 命令输出先过采集上限，再按 maxOutputChars 裁剪后才进上下文[39m[32m 92[2mms[22m[39m
+等待人工审批：单号 e2018ba4-ae3b-46a7-a3d5-9eebfe2fa37b · 工具 write_file · 仓库 未知
+  另一个终端先看队列：approvals tickets
+  再答复：approvals decide e2018ba4-ae3b-46a7-a3d5-9eebfe2fa37b --decision approve --actor <审批人> --roles <角色>
+ [32m✓[39m tests/unit/kg_hitl.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 965[2mms[22m[39m
+     [33m[2m✓[22m[39m 图上批下来之后，工具在这一次运行里真的落了盘 [33m 485[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_context-budget.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 378[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_tasks.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1355[2mms[22m[39m
+     [33m[2m✓[22m[39m AC-3 debt_audit 只存在于配置里：src 不提它，它却能带着自己的脚本跑完一整轮 [33m 514[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_decider-pluggable.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 1065[2mms[22m[39m
+ [31m❯[39m tests/unit/kg_repo-tools.test.ts [2m([22m[2m17 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[33m 3970[2mms[22m[39m
+[31m     [31m×[31m list_files 递归匹配 glob，并跳过 node_modules 与 dist[39m[33m 302[2mms[22m[39m
+[31m     [31m×[31m search_code 输出 路径:行号: 内容，并支持字面量与大小写[39m[32m 145[2mms[22m[39m
+     [32m✓[39m search_code 的非法正则被契约层拦下，并给出两种改法[32m 125[2mms[22m[39m
+     [32m✓[39m read_file 带行号，超限后给出续读 offset[32m 207[2mms[22m[39m
+     [32m✓[39m read_directory 目录排在文件之前，目录名以 / 结尾[32m 119[2mms[22m[39m
+     [32m✓[39m 未知参数与越权读取在触达文件系统前就被拒[32m 148[2mms[22m[39m
+     [32m✓[39m write_file 需要审批，批准后落盘，拒绝则不落盘[32m 170[2mms[22m[39m
+     [32m✓[39m reviewer 缺 repo:write 与 plan 模式都在写之前拦下[32m 85[2mms[22m[39m
+     [32m✓[39m apply_patch 段落按顺序生效并回吐 unified diff[32m 129[2mms[22m[39m
+     [32m✓[39m apply_patch 命中 0 次或多次都整批拒绝，文件保持原样[32m 127[2mms[22m[39m
+     [32m✓[39m newText 里的 $& 不被当成正则引用展开[32m 111[2mms[22m[39m
+     [32m✓[39m run_test 直接执行配置好的命令，不需要审批[32m 268[2mms[22m[39m
+     [32m✓[39m run_test 带 test_file 时把校验过的相对路径追加给命令[32m 231[2mms[22m[39m
+     [32m✓[39m run_test 未配置命令时报 TEST_COMMAND_MISSING[32m 71[2mms[22m[39m
+     [32m✓[39m 测试失败保持 OK 返回，退出码由模型自己读[32m 257[2mms[22m[39m
+[31m     [31m×[31m run_command 走审批，reviewer 看不到执行权限[39m[32m 87[2mms[22m[39m
+     [33m[2m✓[22m[39m git_status 与 git_diff 反映工作区改动 [33m 1381[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_eval.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 322[2mms[22m[39m
+     [33m[2m✓[22m[39m 执行状态与验收结论分开记：停在审批的任务不计为完成 [33m 318[2mms[22m[39m
+ [32m✓[39m tests/unit/kg_agent-loop.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 990[2mms[22m[39m
+ [31m❯[39m tests/unit/kg_contract.test.ts [2m([22m[2m11 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[33m 791[2mms[22m[39m
+     [32m✓[39m 行号与条数边界由参数定义给出，文案点名到字段并说清合格长什么样[32m 110[2mms[22m[39m
+     [32m✓[39m 类型写错由上游顺手纠正，我们不再造第二个校验器[32m 72[2mms[22m[39m
+     [32m✓[39m 绝对路径即使真实存在，也照样被挡在门口[32m 65[2mms[22m[39m
+[31m     [31m×[31m 目录当文件读、glob 以 / 开头，都被点名指出改法[39m[32m 87[2mms[22m[39m
+     [32m✓[39m 整批空操作的补丁不配占用一次审批[32m 57[2mms[22m[39m
+[31m     [31m×[31m literal: true 时同一串字符就按字面量搜，语义规则不多管闲事[39m[32m 62[2mms[22m[39m
+     [32m✓[39m 十件工具的契约全部合格[32m 52[2mms[22m[39m
+     [32m✓[39m 缺说明书、开了额外字段、limit 没有上界，都被逐条念出来[32m 44[2mms[22m[39m
+     [32m✓[39m cli contract 打印的就是模型收到的那份说明书[32m 105[2mms[22m[39m
+     [32m✓[39m Loop 入口与直调入口共用同一套契约，坏参数改对之后 Loop 继续推进[32m 94[2mms[22m[39m
+     [32m✓[39m 契约拒绝只挡住这一次调用：不带 terminate，pi 的 Loop 还能往前走[32m 38[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 8 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_contract.test.ts[2m > [22m契约第二层：schema 表达不了的语义规则[2m > [22m目录当文件读、glob 以 / 开
+头，都被点名指出改法
+[31m[1mAssertionError[22m: expected '**/*.ts · 命中 1 个文件（扫描 2 个）\nsrc\route…' to contain 'src/routes/login.ts'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- src[7m/[27mroutes[7m/[27mlogin.ts[39m
+[31m+ **/*.ts · 命中 1 个文件（扫描 2 个）[39m
+[31m+ src[7m\[27mroutes[7m\[27mlogin.ts[39m
+
+[36m [2m❯[22m tests/unit/kg_contract.test.ts:[2m81:35[22m[39m
+    [90m 79|[39m     [90m// 去掉开头的 / 之后，同一个 pattern 立刻命中文件：契约给的改法是真能用的。[39m
+    [90m 80|[39m     const fixed = await harness.invoke("list_files", { pattern: "**/*.…
+    [90m 81|[39m     [34mexpect[39m([33mString[39m(fixed[33m.[39mcontent))[33m.[39m[34mtoContain[39m([32m"
+src/routes/login.ts"[39m)[33m;[39m
+    [90m   |[39m                                   [31m^[39m
+    [90m 82|[39m   })[33m;[39m
+    [90m 83|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_contract.test.ts[2m > [22m契约第二层：schema 表达不了的语义规则[2m > [22mliteral: true 时同一
+串字符就按字面量搜，语义规则不多管闲事
+[31m[1mAssertionError[22m: expected '([unclosed · 命中 1 处（扫描 3 个文件 / 113 B）…' to contain 'src/odd.ts:1:'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- src[7m/[27modd.ts:1:[39m
+[31m+ ([unclosed · 命中 1 处（扫描 3 个文件 / 113 B）[39m
+[31m+ src[7m\[27modd.ts:1:[7m const broken = "([unclosed";[27m[39m
+
+[36m [2m❯[22m tests/unit/kg_contract.test.ts:[2m104:39[22m[39m
+    [90m102|[39m     const asLiteral = await harness.invoke("search_code", { pattern: "…
+    [90m103|[39m     [34mexpect[39m(asLiteral[33m.[39mok)[33m.[39m[34mtoBe[39m([35mtrue[39m)[33m;[39m
+    [90m104|[39m     [34mexpect[39m([33mString[39m(asLiteral[33m.[39mcontent))[33m.[39m[34mtoContain[39m([
+32m"src/odd.ts:1:"[39m)[33m;[39m
+    [90m   |[39m                                       [31m^[39m
+    [90m105|[39m   })[33m;[39m
+    [90m106|[39m })[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_repo-tools.test.ts[2m > [22m六件读工具[2m > [22mlist_files 递归匹配 glob，并跳过 node_mo
+dules 与 dist
+[31m[1mAssertionError[22m: expected '**/*.ts · 命中 3 个文件（扫描 4 个）\nsrc\route…' to contain 'src/routes/login.ts'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- src[7m/[27mroutes[7m/[27mlogin.ts[39m
+[31m+ **/*.ts · 命中 3 个文件（扫描 4 个）[39m
+[31m+ src[7m\[27mroutes[7m\[27mlogin.ts[39m
+[31m+ src\routes\profile.ts[39m
+[31m+ src\utils\token.ts[39m
+
+[36m [2m❯[22m tests/unit/kg_repo-tools.test.ts:[2m24:36[22m[39m
+    [90m 22|[39m     [34mexpect[39m(result[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m"OK"[39m)[33m;[39m
+    [90m 23|[39m     [34mexpect[39m([33mString[39m(result[33m.[39mcontent))[33m.[39m[34mtoContain[39m([32m
+"命中 3 个文件"[39m)[33m;[39m
+    [90m 24|[39m     [34mexpect[39m([33mString[39m(result[33m.[39mcontent))[33m.[39m[34mtoContain[39m([32m
+"src/routes/login.ts"[39m)[33m;[39m
+    [90m   |[39m                                    [31m^[39m
+    [90m 25|[39m     [34mexpect[39m([33mString[39m(result[33m.[39mcontent))[33m.[39mnot[33m.[39m[34mtoCont
+ain[39m([32m"node_modules"[39m)[33m;[39m
+    [90m 26|[39m     [34mexpect[39m([33mString[39m(result[33m.[39mcontent))[33m.[39mnot[33m.[39m[34mtoCont
+ain[39m([32m"dist/"[39m)[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_repo-tools.test.ts[2m > [22m六件读工具[2m > [22msearch_code 输出 路径:行号: 内容，并支持字面量与
+大小写
+[31m[1mAssertionError[22m: expected 'export function login · 命中 1 处（扫描 4 个…' to contain 'src/routes/login.ts:1: expo
+rt functio…'[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- src[7m/[27mroutes[7m/[27mlogin.ts:1: export function login(user: string) {[39m
+[31m+ export function login · 命中 1 处（扫描 4 个文件 / 181 B）[39m
+[31m+ src[7m\[27mroutes[7m\[27mlogin.ts:1: export function login(user: string) {[39m
+
+[36m [2m❯[22m tests/unit/kg_repo-tools.test.ts:[2m32:36[22m[39m
+    [90m 30|[39m     [35mconst[39m harness [33m=[39m [34mopened[39m()[33m;[39m
+    [90m 31|[39m     const regexp = await harness.invoke("search_code", { pattern: "exp…
+    [90m 32|[39m     expect(String(regexp.content)).toContain("src/routes/login.ts:1: e…
+    [90m   |[39m                                    [31m^[39m
+    [90m 33|[39m
+    [90m 34|[39m     const literal = await harness.invoke("search_code", { pattern: "lo…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_repo-tools.test.ts[2m > [22m四件执行工具[2m > [22mrun_command 走审批，reviewer 看不到执行权
+限
+[31m[1mAssertionError[22m: expected 'spawn /bin/sh ENOENT' to contain '$ /bin/sh -c echo hi · 退出码 0'[39m
+
+Expected: [32m"[7m$[27m /bin/sh [7m-c echo hi · 退出码 0[27m"[39m
+Received: [31m"[7mspawn[27m /bin/sh [7mENOENT[27m"[39m
+
+[36m [2m❯[22m tests/unit/kg_repo-tools.test.ts:[2m231:38[22m[39m
+    [90m229|[39m
+    [90m230|[39m     const executed = await harness.approveAndRun("run_command", { comm…
+    [90m231|[39m     expect(String(executed.content)).toContain("$ /bin/sh -c echo hi ·…
+    [90m   |[39m                                      [31m^[39m
+    [90m232|[39m     [34mexpect[39m([33mString[39m(executed[33m.[39mcontent))[33m.[39m[34mtoContain[39m([3
+2m"hi"[39m)[33m;[39m
+    [90m233|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_sandbox.test.ts[2m > [22mSandbox 三条边界检查[2m > [22m符号链接指向工作区外时按真实路径判定
+[31m[1mError[22m: EPERM: operation not permitted, symlink 'D:\Temp\pi-codebase-xHcgVh\repo\outside' -> 'D:\Temp\pi-c
+odebase-rRofnr\repo\link'[39m
+[36m [2m❯[22m tests/unit/kg_sandbox.test.ts:[2m29:5[22m[39m
+    [90m 27|[39m     outer[33m.[39m[34mwrite[39m([32m"outside/secret.txt"[39m[33m,[39m [32m"leak\n"[39m)[3
+3m;[39m
+    [90m 28|[39m     [35mconst[39m inner [33m=[39m [34mopened[39m()[33m;[39m
+    [90m 29|[39m     symlinkSync(join(outer.workspace, "outside"), join(inner.workspace…
+    [90m   |[39m     [31m^[39m
+    [90m 30|[39m
+    [90m 31|[39m     expect(inner.sandbox.inspect("link/secret.txt")?.code).toBe("PATH_…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_sandbox.test.ts[2m > [22mSandbox 子进程隔离[2m > [22m超时后终止进程组并回报 timed_out
+[31m[1mError[22m: spawn /bin/sh ENOENT[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m tests/unit/kg_sandbox.test.ts[2m > [22mSandbox 子进程隔离[2m > [22m命令输出先过采集上限，再按 maxOutputChar
+s 裁剪后才进上下文
+[31m[1mAssertionError[22m: expected 'TOOL_EXECUTION_FAILED' to be 'OK' // Object.is equality[39m
+
+Expected: [32m"OK"[39m
+Received: [31m"TOOL_EXECUTION_FAILED"[39m
+
+[36m [2m❯[22m tests/unit/kg_sandbox.test.ts:[2m113:27[22m[39m
+    [90m111|[39m     [35mconst[39m content [33m=[39m [33mString[39m(executed[33m.[39mcontent)[33m;[39m
+    [90m112|[39m
+    [90m113|[39m     [34mexpect[39m(executed[33m.[39mcode)[33m.[39m[34mtoBe[39m([32m"OK"[39m)[33m;[39m
+    [90m   |[39m                           [31m^[39m
+    [90m114|[39m     [34mexpect[39m(content)[33m.[39m[34mtoContain[39m([32m"输出超过"[39m)[33m;[39m
+    [90m115|[39m     expect(content.length).toBeLessThan(harness.config.sandbox.maxOutp…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m12 passed[39m[22m[90m (15)[39m
+[2m      Tests [22m [1m[31m8 failed[39m[22m[2m | [22m[1m[32m118 passed[39m[22m[90m (126)[39m
+[2m   Start at [22m 18:52:22
+[2m   Duration [22m 19.06s[2m (transform 1.33s, setup 0ms, import 170.47s, tests 13.92s, environment 6ms)[22m
+

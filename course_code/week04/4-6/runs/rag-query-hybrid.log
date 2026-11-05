@@ -1,0 +1,11 @@
+================================================================================
+问题：会话的有效期是多少分钟？  |  模式：hybrid  |  top_k：5
+================================================================================
+召回证据：
+  [1] docs\session-rules.md § 登录会话有效期规则 > 有效期长度  score=0.0320
+  [2] docs\payment-session.md § 支付会话规则 > 有效期长度  score=0.0315
+  [3] tables\session-matrix.csv § (正文)  score=0.0311
+  [4] app\session.py § (整文件)  score=0.0308
+  [5] docs\payment-session.md § 支付会话规则 > 与登录会话的区别  score=0.0302
+D:\pyenv\pyenv-win\versions\3.13.13\Lib\site-packages\huggingface_hub\utils\tqdm.py:176: UserWarning: Cannot enable progress bars: environment variable `HF_HUB_DISABLE_PROGRESS_BARS=1` is set and has priority.
+  warnings.warn(

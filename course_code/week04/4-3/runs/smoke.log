@@ -1,0 +1,42 @@
+﻿login_demo HTTP smoke test - 2026-10-22 19:31:35
+
+CASE: health
+  GET /health
+  status: 200
+  body: {"ok":true}
+
+CASE: login ok
+  POST /api/login
+  status: 200
+  body: {"accessToken":"demo-token.eyJ1c2VySWQiOiJ1XzEwMDEiLCJyb2xlIjoibWVtYmVyIn0","user":{"id":"u_1001","email":"demo@example.com","displayName":"Demo User","role":"member"}}
+
+CASE: login wrong password
+  POST /api/login
+  status: 401
+  body: {"error":"Invalid password"}
+
+CASE: login missing fields
+  POST /api/login
+  status: 400
+  body: {"error":"email and password are required"}
+
+CASE: login unknown user
+  POST /api/login
+  status: 401
+  body: {"error":"User not found"}
+
+CASE: profile without token
+  GET /api/profile
+  status: 401
+  body: {"error":"Missing bearer token"}
+
+CASE: profile invalid token
+  GET /api/profile
+  status: 401
+  body: {"error":"Invalid token"}
+
+CASE: profile with valid token
+  GET /api/profile
+  status: 200
+  body: {"message":"Authenticated request","currentUser":{"userId":"u_1001","role":"member"}}
+

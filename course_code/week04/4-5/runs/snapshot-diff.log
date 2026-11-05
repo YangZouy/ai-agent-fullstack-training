@@ -1,0 +1,53 @@
+﻿快照对比：llm-wiki-demo5-step（阶段一，5 步） vs llm-wiki-demo-step9（阶段二，9 步）
+文件总数：5-step 28，step9 35
+
+== 仅 step9 有的文件（7）==
+raw\discussions\ttl-proposal.md
+raw\v2\docs\session-rules.md
+reports\acceptance.md
+reports\access-review.md
+reports\lint.md
+reports\update-impact.md
+wiki\queries\login-onboarding.md
+
+== 仅 5-step 有的文件（0）==
+无
+
+== 同名但内容不同（13）==
+manifests\pages.json
+manifests\sources.json
+staging\dependencies.json
+staging\comparisons\session-types.md
+staging\project\logout-plan.md
+staging\technical\login-session.md
+staging\technical\token-lifecycle.md
+wiki\index.md
+wiki\log.md
+wiki\comparisons\session-types.md
+wiki\project\logout-plan.md
+wiki\technical\login-session.md
+wiki\technical\token-lifecycle.md
+
+== 文本差异统计 ==
+ .../manifests/pages.json                           |  149 +-
+ .../manifests/sources.json                         |  116 +-
+ .../raw/discussions/ttl-proposal.md                |    2 +
+ .../raw/v2/docs/session-rules.md                   |   11 +
+ .../4-5/llm-wiki-demo-step9/reports/acceptance.md  |  253 +++
+ .../llm-wiki-demo-step9/reports/access-review.md   |  225 +++
+ .../week04/4-5/llm-wiki-demo-step9/reports/lint.md |  250 +++
+ .../llm-wiki-demo-step9/reports/update-impact.md   |  148 ++
+ .../staging/comparisons/session-types.md           |   86 +-
+ .../staging/dependencies.json                      | 1623 ++++++++++++++++++--
+ .../staging/project/logout-plan.md                 |   26 +-
+ .../staging/technical/login-session.md             |  185 ++-
+ .../staging/technical/token-lifecycle.md           |   35 +-
+ .../wiki/comparisons/session-types.md              |   86 +-
+ .../wiki/index.md                                  |   85 +-
+ .../wiki/log.md                                    |  113 ++
+ .../wiki/project/logout-plan.md                    |   26 +-
+ .../wiki/queries/login-onboarding.md               |  263 ++++
+ .../wiki/technical/login-session.md                |  185 ++-
+ .../wiki/technical/token-lifecycle.md              |   35 +-
+ 20 files changed, 3575 insertions(+), 327 deletions(-)
+

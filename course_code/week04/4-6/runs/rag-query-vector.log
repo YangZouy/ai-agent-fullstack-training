@@ -1,0 +1,9 @@
+================================================================================
+问题：退出登录要做什么  |  模式：vector  |  top_k：3
+================================================================================
+召回证据：
+  [1] history\2026-10-06-logout-request.md § 需求讨论 2026-10-06：增加退出登录功能 > 背景  score=0.6661
+  [2] history\2026-10-06-logout-request.md § 需求讨论 2026-10-06：增加退出登录功能 > 需要改的地方  score=0.6304
+  [3] history\2026-10-06-logout-request.md § 需求讨论 2026-10-06：增加退出登录功能  score=0.6274
+D:\pyenv\pyenv-win\versions\3.13.13\Lib\site-packages\huggingface_hub\utils\tqdm.py:176: UserWarning: Cannot enable progress bars: environment variable `HF_HUB_DISABLE_PROGRESS_BARS=1` is set and has priority.
+  warnings.warn(

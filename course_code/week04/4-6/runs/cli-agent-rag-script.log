@@ -1,0 +1,81 @@
+﻿node : (node:9936) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+At line:15 char:2130
++ ...  $env:PATH; node --import tsx src/cli.ts agent "登录会话有效期是多少？给我带出处的答复"  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:9936) Exp...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+[决策器] mock:rag-session-ttl.yaml · 离线脚本决策器（rag-session-ttl.yaml）
+这是有权威出处的事实问题，先查 RAG 知识库，拿带引用的检索结果。
+[决策器 · 第1步] mock:rag-session-ttl.yaml
+依据知识库（编号对应 rag_query 返回的来源追溯）：登录会话有效期 30 分钟，从签发时刻计时、到期即无效、空闲不自动续期 [1]；支付会话 5 分钟、超时置 PAY_TIMEOUT 需重新下单 [2]；会话矩阵另给出匿名浏览 120 分钟、记住我令牌 30 天 [3]。结论：登录会话是 30 分钟，恰好到期视为无效这条边界以 session-rules.md 为准。
+[决策器 · 第2步] mock:rag-session-ttl.yaml
+
+[交付物] (本类任务未声明) · 写入 无账可查 · 模型自述 未提到 · 自述无据 否
+
+{
+  "trace_id": "51b91523-a367-4e99-b262-bd46cd52a1c9",
+  "task": null,
+  "decider": {
+    "kind": "scripted",
+    "requested": "mock",
+    "label": "mock:rag-session-ttl.yaml",
+    "script": "rag-session-ttl.yaml",
+    "model_id": "managed-script/decider",
+    "reason": "离线脚本决策器（rag-session-ttl.yaml）",
+    "degraded": false,
+    "steps": 2
+  },
+  "deliverable": {
+    "task": null,
+    "task_label": null,
+    "expected_path": null,
+    "approvers": [],
+    "decider": {
+      "kind": "scripted",
+      "label": "mock:rag-session-ttl.yaml",
+      "script": "rag-session-ttl.yaml",
+      "degraded": false
+    },
+    "delivered": false,
+    "model_claims": false,
+    "claim_without_evidence": false,
+    "attempts": []
+  },
+  "prompt_source": "local",
+  "prompt_version": "v1",
+  "prompt_hash": "86cf44435e0ca37961c01061e9e7aecb0d332efd9cfec130c2c4389bd3d8db61",
+  "final_answer": "依据知识库（编号对应 rag_query 返回的来源追溯）：登录会话有效期 30 分钟，从签发时刻计时、到期即无效、空闲不自动续期 [1]；支付会话 5 分钟、超时置 PAY_TIMEOUT 需重新下单 [2]；会话矩阵另给出匿名浏览 120 分钟、记住我令牌 30 天 [3]。结论：登录会话是 30 分钟，恰好到期视为无效这条边界以 session-rules.md 为准。",
+  "stop": {
+    "stop": true,
+    "code": "COMPLETED",
+    "reason": "模型给出最终回答，Loop 正常收口"
+  },
+  "budget": {
+    "turns": 2,
+    "tool_calls": 1,
+    "total_tokens": 4529,
+    "cost_usd": 0.0014271,
+    "elapsed_ms": 6372
+  },
+  "context": {
+    "renders": 2,
+    "rules": {
+      "keepRecentTurns": 2,
+      "auditMaxLines": 30,
+      "auditMaxChars": 4000
+    },
+    "last": {
+      "applied": false,
+      "steps_total": 1,
+      "steps_summarized": 0,
+      "chars_before": 2658,
+      "chars_after": 2658,
+      "tokens_before": 259,
+      "tokens_after": 259,
+      "rendered_hash": "dfb93c454ad7f35e66506d7514da1163349738e4c2aec3948df10e47c966682d"
+    }
+  },
+  "message_count": 5
+}

@@ -1,0 +1,186 @@
+{
+  "route": {
+    "agent-default": "DeepSeek/deepseek-flash"
+  },
+  "retry_policy": "常规请求对超时、429、5xx最多重试1次；认证和参数错误不重试；实验请求不重试",
+  "records": [
+    {
+      "label": "1-首次请求",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": true,
+      "cache_hit": false,
+      "usage": {
+        "completion_tokens": 66,
+        "prompt_tokens": 80,
+        "total_tokens": 146,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null,
+          "text_tokens": 66,
+          "image_tokens": null,
+          "video_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 0,
+          "text_tokens": null,
+          "image_tokens": null,
+          "video_tokens": null
+        }
+      },
+      "finish_reason": "stop",
+      "status": "ok",
+      "first_text_ms": 2447,
+      "total_ms": 2954,
+      "response": "边界判断不正确。依据：规则要求“到期立即失效”，即 `now == expires_at` 时应为 False；当前 `now <= expires_at` 在恰好到期时返回 True，与测试预期 False 冲突。应使用严格小于（`now < expires_at`）才符合“到期立即失效”。"
+    },
+    {
+      "label": "2-相同输入检查缓存",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": true,
+      "cache_hit": null,
+      "usage": null,
+      "finish_reason": null,
+      "status": "error",
+      "error_type": "ModuleNotFoundError",
+      "http_status": null,
+      "first_text_ms": null,
+      "total_ms": 664,
+      "response": ""
+    },
+    {
+      "label": "3-版本改变重新调用",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": true,
+      "cache_hit": false,
+      "usage": {
+        "completion_tokens": 148,
+        "prompt_tokens": 76,
+        "total_tokens": 224,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null,
+          "text_tokens": 148,
+          "image_tokens": null,
+          "video_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 0,
+          "text_tokens": null,
+          "image_tokens": null,
+          "video_tokens": null
+        }
+      },
+      "finish_reason": "stop",
+      "status": "ok",
+      "first_text_ms": 699,
+      "total_ms": 1660,
+      "response": "边界判断不正确。依据：规则要求“到期立即失效”，即 `now == expires_at` 时应失效；而 `now < expires_at` 在相等时返回 false（失效），看似符合，但需注意“到期立即失效”意味着到期时刻本身已失效，`now < expires_at` 在 `now == expires_at` 时返回 false，确实失效。三个边界测试均通过只能说明测试覆盖的边界与实现一致，不能证明实现符合规则；若测试未覆盖 `now == expires_at` 的期望失效断言，则证据不足。结论：仅凭“三个边界测试均通过”无法确认边界判断正确，需检查测试是否明确断言到期时刻失效。"
+    },
+    {
+      "label": "4-并发请求-2",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": false,
+      "cache_hit": null,
+      "usage": null,
+      "finish_reason": null,
+      "status": "error",
+      "error_type": "RateLimitError",
+      "http_status": 429,
+      "first_text_ms": null,
+      "total_ms": 36,
+      "response": ""
+    },
+    {
+      "label": "4-并发请求-1",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": false,
+      "cache_hit": false,
+      "usage": {
+        "completion_tokens": 24,
+        "prompt_tokens": 50,
+        "total_tokens": 74,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null,
+          "text_tokens": 24,
+          "image_tokens": null,
+          "video_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 0,
+          "text_tokens": null,
+          "image_tokens": null,
+          "video_tokens": null
+        }
+      },
+      "finish_reason": "stop",
+      "status": "ok",
+      "first_text_ms": 908,
+      "total_ms": 1175,
+      "response": "会话到期立即失效指会话一旦到达过期时间就马上不可用，后续请求会被拒绝或要求重新认证。"
+    },
+    {
+      "label": "5-限流请求-1",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": false,
+      "cache_hit": false,
+      "usage": {
+        "completion_tokens": 1,
+        "prompt_tokens": 47,
+        "total_tokens": 48,
+        "completion_tokens_details": {
+          "accepted_prediction_tokens": null,
+          "audio_tokens": null,
+          "reasoning_tokens": 0,
+          "rejected_prediction_tokens": null,
+          "text_tokens": 1,
+          "image_tokens": null,
+          "video_tokens": null
+        },
+        "prompt_tokens_details": {
+          "audio_tokens": null,
+          "cached_tokens": 0,
+          "text_tokens": null,
+          "image_tokens": null,
+          "video_tokens": null
+        }
+      },
+      "finish_reason": "stop",
+      "status": "ok",
+      "first_text_ms": 1204,
+      "total_ms": 1291,
+      "response": "OK"
+    },
+    {
+      "label": "5-限流请求-2",
+      "route": "agent-default",
+      "target_model": "deepseek-flash",
+      "cache_enabled": false,
+      "cache_hit": null,
+      "usage": null,
+      "finish_reason": null,
+      "status": "error",
+      "error_type": "RateLimitError",
+      "http_status": 429,
+      "first_text_ms": null,
+      "total_ms": 32,
+      "response": ""
+    }
+  ],
+  "note": "缓存命中的 usage 是原响应记录，不是本次新增消耗；没有第二个模型，因此不配置回退。"
+}

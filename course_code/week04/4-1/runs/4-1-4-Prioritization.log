@@ -1,0 +1,81 @@
+优先分配顺序： ['用户目标和限制', '业务规则', '当前失败', '当前源码', '当前状态']
+装配报告：
+[
+  {
+    "材料": "用户目标和限制",
+    "处理": "直接提供"
+  },
+  {
+    "材料": "业务规则",
+    "处理": "直接提供"
+  },
+  {
+    "材料": "当前源码",
+    "处理": "直接提供"
+  },
+  {
+    "材料": "旧版通过记录",
+    "处理": "排除：证据已失效"
+  },
+  {
+    "材料": "当前失败",
+    "处理": "提供压缩版"
+  },
+  {
+    "材料": "当前状态",
+    "处理": "直接提供"
+  },
+  {
+    "材料": "早期探索",
+    "处理": "本轮未选：优先级较低，需要时再读"
+  }
+]
+最终请求：
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "遵守用户限制，根据当前代码和证据分析问题。"
+    },
+    {
+      "role": "user",
+      "content": "材料：用户目标和限制\n来源：用户要求\n修复到期后仍有效的问题；不得修改现有测试。"
+    },
+    {
+      "role": "user",
+      "content": "材料：业务规则\n来源：当前需求\n到期时立即失效。"
+    },
+    {
+      "role": "user",
+      "content": "材料：当前源码\n来源：会话校验函数\nreturn now <= expires_at"
+    },
+    {
+      "role": "user",
+      "content": "材料：当前失败\n来源：D:\\Temp\\packing_priority_z3x91zf0\\session_tests.log\ntest_at_expiry：now=100，expires_at=100；预期 False，实际 True。\n完整日志路径：D:\\Temp\\packing_priority_z3x91zf0\\session_tests.log"
+    },
+    {
+      "role": "user",
+      "content": "材料：当前状态\n来源：任务记录\n失败已复现，补丁未应用；下一步检查到期边界。"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "read_file",
+        "description": "需要更多细节时读取完整材料",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      }
+    }
+  ]
+}

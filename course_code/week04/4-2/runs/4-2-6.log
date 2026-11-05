@@ -1,0 +1,33 @@
+﻿[
+  {
+    "role": "user",
+    "content": "修复会话到期判断，不得修改测试。"
+  },
+  {
+    "role": "assistant",
+    "content": [
+      {
+        "type": "toolCall",
+        "id": "test-001",
+        "name": "run_test",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "role": "toolResult",
+    "toolCallId": "test-001",
+    "toolName": "run_test",
+    "content": [
+      {
+        "type": "text",
+        "text": "预期 False，实际 True"
+      }
+    ],
+    "isError": false
+  },
+  {
+    "role": "user",
+    "content": "当前任务记录：\n{\"goal\": \"到期立即失效\", \"constraints\": [\"不得修改测试\"], \"code_version\": \"v1\", \"status\": \"已获得失败证据，尚未修改\", \"evidence\": \"test-001\", \"next_step\": \"定位并修改比较条件\"}\n请继续。"
+  }
+]

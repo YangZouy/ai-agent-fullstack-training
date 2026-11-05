@@ -1,4 +1,11 @@
-"""数据准备：解析 → 分块 → 写 Milvus。
+"""数据准备：解析 → 分块 → 写 Milvus。（离线数据准备——入库
+把本地语料变成milvus里的向量索引）
+流程：读取文件
+解析成Document
+清洗
+按策略切块
+嵌入
+写入milvus
 
 第一步只用 Markdown 和 Python 源码跑通最小闭环；
 第二步再把 PDF、HTML、表格加进来。
@@ -36,7 +43,7 @@ EXT_TO_TYPE = {
 
 def _rel(path: Path) -> str:
     """统一用「相对 corpus 的路径」做标识，引用和评估都认这个。# """
-    return str(path.relative_to(CORPUS))
+    return path.relative_to(CORPUS).as_posix()
 
 
 # ---------------------------------------------------------------- 解析
@@ -72,7 +79,7 @@ def parse_front_matter(text: str) -> tuple[dict, str]:
     body = "\n".join(parts[end + 1:]).lstrip("\n")
     return meta, body
 
-
+# 单文件 → Document
 def _doc_from_path(path: Path, text: str) -> Document:
     meta, body = parse_front_matter(text)
     base = {
@@ -84,7 +91,6 @@ def _doc_from_path(path: Path, text: str) -> Document:
     for key, value in meta.items():
         base[key] = value
     return Document(text=body, metadata=base, id_=_rel(path))
-
 
 def load_markdown_and_code() -> List[Document]:
     """第一步的语料：Markdown 文档 + 项目源码 + 历史记录。"""
@@ -124,7 +130,8 @@ def load_table(path: Path) -> str:
         out.append(cells + "。")
     return "\n".join(out)
 
-
+# 使用pypdf进行解析，逐页提取文字，每页前面插入一个 HTML 注释 <!-- page N -->，保留页边界信息
+# 所有页用 \n\n 连接，返回一个大字符串
 def load_pdf(path: Path) -> str:
     """PDF：pypdf 逐页抽文字。"""
     from pypdf import PdfReader
@@ -166,7 +173,11 @@ def load_all() -> List[Document]:
 # ---------------------------------------------------------------- 清洗
 
 def clean_text(text: str) -> str:
-    """去掉解析残留：页码注释、连续空行、行尾空格、全角空格。"""
+    """去掉解析残留：
+    页码注释<!-- page N -->
+    连续空行：连续 3 个以上换行压缩成 2 个（保留段落分隔），最后 strip
+    行尾空格
+    全角空格\u3000。"""
     text = re.sub(r"<!--\s*page\s*\d+\s*-->", "", text)
     text = text.replace("\u3000", " ")
     lines = [line.rstrip() for line in text.splitlines()]
@@ -291,7 +302,7 @@ def chunk_code_ast(docs: Iterable[Document]) -> List[TextNode]:
             nodes.append(node)
     return nodes
 
-
+# 补充元数据：合并文档元数据 + heading + hearder_path
 def _decorate(node: TextNode, doc: Document) -> TextNode:
     header = node.metadata.get("header_path", "") or ""
     node.metadata = {
@@ -301,7 +312,7 @@ def _decorate(node: TextNode, doc: Document) -> TextNode:
     }
     return node
 
-
+# 按照策略选择分隔方法
 def chunk(docs, strategy: str = "markdown", chunk_size: int = 384, overlap: int = 0,
           embed_model=None):
     if strategy == "markdown":
@@ -325,11 +336,11 @@ def chunk(docs, strategy: str = "markdown", chunk_size: int = 384, overlap: int 
 
 
 # ---------------------------------------------------------------- 入库
-
+# 构造嵌入模型
 def get_embedding(truncate_dim: int = 0) -> MiniMaxEmbedding:
     return MiniMaxEmbedding(model_name="embo-01", truncate_dim=truncate_dim)
 
-
+# 
 def _load_if_needed(store: MilvusVectorStore, collection: str) -> None:
     """Milvus Lite 在进程退出时会把 collection 置为 released。
 
@@ -342,7 +353,7 @@ def _load_if_needed(store: MilvusVectorStore, collection: str) -> None:
     except Exception:
         pass
 
-
+# 打开已有索引
 def build_index(nodes: List[TextNode], collection: str = COLLECTION,
                 overwrite: bool = True, embed_model=None, dim: int = EMBED_DIM) -> VectorStoreIndex:
     embed_model = embed_model or get_embedding()

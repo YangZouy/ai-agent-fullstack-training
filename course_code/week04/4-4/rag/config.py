@@ -17,9 +17,10 @@ API_BASE = "https://api.minimaxi.com/v1"
 
 
 def api_key() -> str:
-    """从 ~/.hermes/.env 读取 MiniMax key。"""
-    env = Path.home() / ".hermes" / ".env"
-    for line in env.read_text().splitlines():
+    """从项目根目录的 .env 读取 MiniMax key。"""
+    env = ROOT / ".env"
+    for line in env.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
         if line.startswith("MINIMAX_CN_API_KEY="):
-            return line.split("=", 1)[1].strip()
-    raise RuntimeError("MINIMAX_CN_API_KEY not found in ~/.hermes/.env")
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
+    raise RuntimeError("MINIMAX_CN_API_KEY not found in project .env")

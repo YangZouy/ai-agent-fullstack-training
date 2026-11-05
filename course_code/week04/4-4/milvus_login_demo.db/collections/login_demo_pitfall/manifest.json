@@ -1,6 +1,6 @@
 {
-  "active_wal_number": 3,
-  "current_seq": 6,
+  "active_wal_number": 2,
+  "current_seq": 3,
   "index_specs": {
     "embedding": {
       "build_params": {},
@@ -14,12 +14,11 @@
   "partitions": {
     "_default": {
       "data_files": [
-        "data/data_000001_000003.parquet",
-        "data/data_000004_000006.parquet"
+        "data/data_000001_000003.parquet"
       ],
       "delta_files": []
     }
   },
   "schema_version": 1,
-  "version": 3
+  "version": 2
 }

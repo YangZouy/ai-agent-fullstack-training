@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rag.ingest import (CORPUS, chunk, clean_text, get_embedding, load_all,
                         load_html, load_pdf, load_table, parse_front_matter)
 
-
+# 按行拆分 去掉空行 
 def brief(text: str, n: int = 90) -> str:
     text = " / ".join(line for line in text.splitlines() if line.strip())
     return text[:n] + ("…" if len(text) > n else "")
@@ -60,6 +60,7 @@ def main() -> None:
     print("=" * 78)
     print("① 解析：四种格式分别读成什么")
     print("=" * 78)
+    # 加载pdf
     raw_pdf = load_pdf(CORPUS / "pdf" / "PRD-login-2.5.0.pdf")
     print(f"[PDF ] 原始抽取 {len(raw_pdf)} 字符，开头：{brief(raw_pdf)}")
     print(f"[PDF ] 清洗后   {len(clean_text(raw_pdf))} 字符，开头：{brief(clean_text(raw_pdf))}")

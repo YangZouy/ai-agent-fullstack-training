@@ -1,0 +1,60 @@
+
+usage: {"prompt_tokens": 329, "completion_tokens": 33, "total_tokens": 362, "prompt_tokens_details": {"cached_tokens": 0}, "prompt_cache_hit_tokens": 0, "prompt_cache_miss_tokens": 329}
+
+故障注入：工具执行前取消，尚未回写 tool 结果
+本地拦截（未发第二次请求）： MISSING_TOOL_RESULT: ['call_00_rajbdwWfJAFJCEpx1bqh2978']
+补齐 aborted，保留原 ID： call_00_rajbdwWfJAFJCEpx1bqh2978
+第一次读取被取消了（`aborted`，`executed: false`），没有拿到任何文件内容。按规则，只读工具被取消后可以重新申请读取一次，我再试一次：
+usage: {"prompt_tokens": 405, "completion_tokens": 79, "total_tokens": 484, "prompt_tokens_details": {"cached_tokens": 256}, "prompt_cache_hit_tokens": 256, "prompt_cache_miss_tokens": 149}
+真实读取完成，新调用 ID： call_00_p8V8yc0RkezI7AMGBgNv1422
+我已经成功读到 `session.py`，内容只有三行：
+
+```python
+def is_session_valid(now, expires_at):
+    return now <= expires_at
+```
+
+## 为什么会“恰好到期仍有效”
+
+问题出在比较运算符用了 `<=`（小于等于），而不是 `<`（小于）。
+
+判断边界时：
+
+| 情形 | `now` 与 `expires_at` | 当前返回值 | 是否应该有效 |
+|---|---|---|---|
+| 尚未到期 | `now < expires_at` | `True` | 是，符合预期 |
+| **恰好到期** | `now == expires_at` | **`True`** | **否，应当失效** |
+| 已过期 | `now > expires_at` | `False` | 否，符合预期 |
+
+也就是说，如果 `expires_at` 表示“到期时刻”（即该时刻起不再有效），那么有效区间应是半开区间 `[签发时刻, expires_at)`，而在 `now == expires_at` 这一瞬间，会话已经失效，却被判为有效。典型表现是：在 TTL 到点的同一秒或同一毫秒内，请求仍然能够通过鉴权，直到时钟走到 `expires_at` 之后的相邻时间单位才失效。
+
+可能还有两层潜在风险，需要一并确认：
+
+1. **时间单位与精度不一致**：`now` 和 `expires_at` 若来自不同来源（一个本地时钟、一个存储中的时间戳），单位（秒 vs 毫秒）或时区不一致，会让“恰好相等”更容易发生，也会让边界行为看起来随机。
+2. **时钟漂移**：多机部署时本地时钟偏慢，可能让 `now <= expires_at` 在到期后仍为真。
+
+## 修改建议
+
+**1）把边界改成开区间（最小改动）**
+
+```python
+def is_session_valid(now, expires_at):
+    return now < expires_at
+```
+
+**2）更明确地处理“到期即失效”，并加上防御性检查**
+
+```python
+def is_session_valid(now, expires_at):
+    if expires_at is None:          # 无过期时间的策略要先显式约定
+        return False                # 或按业务改为 True，但不要含糊
+    return now < expires_at
+```
+
+**3）如涉及时钟来源不一致，统一比较基准**
+
+```python
+def is_session_valid(now, expires_at):
+    # now /
+usage: {"prompt_tokens": 513, "completion_tokens": 512, "total_tokens": 1025, "prompt_tokens_details": {"cached_tokens": 256}, "prompt_cache_hit_tokens": 256, "prompt_cache_miss_tokens": 257}
+模型完成本轮分析；请检查它是否依据实际源码给出建议

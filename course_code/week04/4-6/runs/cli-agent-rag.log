@@ -1,0 +1,87 @@
+﻿node : (node:24708) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+At line:15 char:3227
++ ...  $env:PATH; node --import tsx src/cli.ts agent "登录会话有效期是多少？给我带出处的答复"  ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:24708) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+[决策器] real:deepseek/deepseek-v4-flash · DEEPSEEK_API_KEY 已设置，连接 https://api.deepseek.com
+我会先查看工作区，找出会话/有效期的定义位置。
+[决策器 · 第1步] real:deepseek/deepseek-v4-flash
+
+[决策器 · 第2步] real:deepseek/deepseek-v4-flash
+
+[决策器 · 第3步] real:deepseek/deepseek-v4-flash
+
+[决策器 · 第4步] real:deepseek/deepseek-v4-flash
+
+[决策器 · 第5步] real:deepseek/deepseek-v4-flash
+
+[交付物] (本类任务未声明) · 写入 无账可查 · 模型自述 未提到 · 自述无据 否
+
+{
+  "trace_id": "6befab64-9815-46f3-aa9c-5aef878223cd",
+  "task": null,
+  "decider": {
+    "kind": "gateway",
+    "requested": "real",
+    "label": "real:deepseek/deepseek-v4-flash",
+    "script": null,
+    "model_id": "deepseek/deepseek-v4-flash",
+    "reason": "DEEPSEEK_API_KEY 已设置，连接 https://api.deepseek.com",
+    "degraded": false,
+    "steps": 5
+  },
+  "deliverable": {
+    "task": null,
+    "task_label": null,
+    "expected_path": null,
+    "approvers": [],
+    "decider": {
+      "kind": "gateway",
+      "label": "real:deepseek/deepseek-v4-flash",
+      "script": null,
+      "degraded": false
+    },
+    "delivered": false,
+    "model_claims": false,
+    "claim_without_evidence": false,
+    "attempts": []
+  },
+  "prompt_source": "local",
+  "prompt_version": "v1",
+  "prompt_hash": "86cf44435e0ca37961c01061e9e7aecb0d332efd9cfec130c2c4389bd3d8db61",
+  "final_answer": "",
+  "stop": {
+    "stop": true,
+    "code": "MAX_TOOL_CALLS",
+    "reason": "工具调用预算已耗尽"
+  },
+  "budget": {
+    "turns": 5,
+    "tool_calls": 12,
+    "total_tokens": 9031,
+    "cost_usd": 0.003257892,
+    "elapsed_ms": 6023
+  },
+  "context": {
+    "renders": 5,
+    "rules": {
+      "keepRecentTurns": 2,
+      "auditMaxLines": 30,
+      "auditMaxChars": 4000
+    },
+    "last": {
+      "applied": true,
+      "steps_total": 4,
+      "steps_summarized": 2,
+      "chars_before": 9240,
+      "chars_after": 8108,
+      "tokens_before": 1916,
+      "tokens_after": 1626,
+      "rendered_hash": "00f0c12c956a8d7551a5762a25dd9a31f183e82d5732ae12a3827d0cf35121a9"
+    }
+  },
+  "message_count": 19
+}

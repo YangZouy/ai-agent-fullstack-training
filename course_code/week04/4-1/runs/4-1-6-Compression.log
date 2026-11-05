@@ -1,0 +1,23 @@
+完整结果 36494 字符 → 短结果 498 字符（不是 Token 数）
+{
+  "revision": "4924b726045693296476e7cdc1e5708553de0f6caead791e8d0963e2af4f6b88",
+  "status": "failed",
+  "tests_run": 3,
+  "failure_count": 1,
+  "error_count": 0,
+  "errors": [],
+  "output_ref": "D:\\study\\ai-agent-fullstack-training\\course_code\\week04\\4-1\\artifacts\\test_result.json",
+  "failures": [
+    {
+      "test": "at_expiry",
+      "input": {
+        "now": 100,
+        "expires_at": 100
+      },
+      "expected": false,
+      "actual": true
+    }
+  ],
+  "omitted_failures": 0
+}
+完整记录已保存，可按 output_ref 补读。短结果仍需经过预算检查。

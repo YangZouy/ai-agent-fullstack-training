@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-
+# 把项目根加入模块搜索路径
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from rag.answer import label
@@ -22,11 +22,11 @@ from rag.local_embed import BGESmallZhEmbedding
 COLLECTION = "login_demo_pitfall"
 QUESTION = "登录会话的有效期是多少分钟？"
 
-
+# 构造节点
 def nodes():
     return chunk(load_markdown_and_code(), "markdown", 384)[:3]
 
-
+# 读取collection行数
 def row_count():
     from llama_index.vector_stores.milvus import MilvusVectorStore
 
@@ -40,12 +40,14 @@ def main() -> None:
     mode = sys.argv[1] if len(sys.argv) > 1 else "build"
     emb = BGESmallZhEmbedding()
 
+    # 建库
     if mode == "build":
         print("[进程 1] 用 overwrite=True 建库，写入 3 个节点")
         build_index(nodes(), collection=COLLECTION, overwrite=True, embed_model=emb, dim=512)
         print(f"        collection 行数：{row_count()}")
         return
 
+    # 再插一遍
     if mode == "again":
         print("[进程 2] 换一个进程，用 overwrite=False 把同样的节点再插一遍")
         index = build_index(nodes(), collection=COLLECTION, overwrite=False,
@@ -56,6 +58,7 @@ def main() -> None:
             print(f"          [{i}] {label(h)}  node_id={h.node.node_id[:8]}")
         return
 
+    # 不 load 直接检索
     if mode == "noload":
         from llama_index.vector_stores.milvus import MilvusVectorStore
 

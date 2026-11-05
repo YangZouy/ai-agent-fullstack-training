@@ -26,7 +26,7 @@ EMBED_URL = f"{API_BASE}/embeddings"
 CALL_STATS = {"embed_calls": 0, "embed_texts": 0, "embed_chars": 0, "embed_seconds": 0.0}
 
 
-def _post(url: str, payload: dict, timeout: int = 60, retries: int = 3) -> dict:
+def _post(url: str, payload: dict, timeout: int = 60, retries: int = 6) -> dict:
     data = json.dumps(payload).encode()
     last = None
     for attempt in range(retries):
@@ -40,7 +40,12 @@ def _post(url: str, payload: dict, timeout: int = 60, retries: int = 3) -> dict:
         )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode())
+                body = json.loads(resp.read().decode())
+            if body.get("base_resp", {}).get("status_code", 0) == 1002:
+                last = body["base_resp"]  # 触发 RPM 限流：退避后重试
+                time.sleep(min(5 * (attempt + 1), 30))
+                continue
+            return body
         except Exception as exc:  # 网络抖动时退避重试
             last = exc
             time.sleep(1.5 * (attempt + 1))

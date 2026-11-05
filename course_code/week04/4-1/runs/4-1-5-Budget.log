@@ -1,0 +1,70 @@
+课堂容量 1000 - 输出 128 - 余量 150 = 输入预算 722
+全部装入的本地估算： 17183
+尝试 业务规则和限制/完整：105 / 722
+尝试 当前失败/完整：12137 / 722
+尝试 当前失败/压缩：160 / 722
+尝试 当前源码/完整：176 / 722
+排除 旧测试：证据已失效
+尝试 当前状态/完整：197 / 722
+尝试 支付文档/完整：5207 / 722
+跳过 支付文档：剩余预算不足
+装配后的本地估算： 197
+最终请求： {
+  "messages": [
+    {
+      "role": "system",
+      "content": "依据当前证据分析问题，遵守修改限制。"
+    },
+    {
+      "role": "user",
+      "content": "修复登录会话到期后仍然有效的问题。"
+    },
+    {
+      "role": "user",
+      "content": "业务规则和限制：到期立即失效；不得修改现有测试。"
+    },
+    {
+      "role": "user",
+      "content": "当前源码：return now <= expires_at"
+    },
+    {
+      "role": "user",
+      "content": "当前失败：test_at_expiry：now=100，expires_at=100；预期 False，实际 True。\n完整日志：D:\\Temp\\budget_demo_5uomxm66\\session_tests.log"
+    },
+    {
+      "role": "user",
+      "content": "当前状态：失败已复现，补丁未应用。"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "read_file",
+        "description": "需要时读取完整日志",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      }
+    }
+  ]
+}
+
+反例：把输入预算缩到 1，检查是否拒绝发送
+已拦截： 固定输入已超限，不能发送
+
+反例：必须项压缩后仍然过长
+尝试 必要证据/完整：12116 / 722
+尝试 必要证据/压缩：6108 / 722
+已拦截： 必须项 必要证据 压缩后仍超限，拒绝发送
+DeepSeek 实际 usage： {"prompt_tokens":107,"completion_tokens":128,"total_tokens":235,"prompt_tokens_details":{"cached_tokens":0},"prompt_cache_hit_tokens":0,"prompt_cache_miss_tokens":107}
+实际输入与估算之差： -90
+实际输入是否在课堂预算内： True

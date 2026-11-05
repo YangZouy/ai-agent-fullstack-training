@@ -2,9 +2,12 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+# 存纯文本文件seesion.jsonl，在系统临时目录下的一个随机子目录中
+# 进入with块时创建目录，退出时递归删除
 with TemporaryDirectory() as directory:
     session_file = Path(directory) / "session.jsonl"
 
+    # 定义一个函数，用于将会话记录追加到文件中
     def append(entry):
         with session_file.open("a", encoding="utf-8") as file:
             file.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -40,6 +43,8 @@ with TemporaryDirectory() as directory:
     }})
 
     # 4. 单独保存工作记忆，不自动加入消息列表。
+    # type保存成custom，不是对话消息，放进文件，模型不会自动看到它
+    # 不写进消息（消息不可修改，状态可以推翻重写）
     append({"type": "custom", "customType": "working_memory", "data": {
         "goal": "到期立即失效",
         "constraints": ["不得修改测试"],
@@ -54,10 +59,12 @@ with TemporaryDirectory() as directory:
         json.loads(line)
         for line in session_file.read_text(encoding="utf-8").splitlines()
     ]
+    # 取出messages中没有custom工作记忆，它不进历史，不污染上下文
     messages = [
         entry["message"] for entry in entries
         if entry["type"] == "message"
     ]
+    # 取出custom记忆
     memory = next(
         entry["data"] for entry in reversed(entries)
         if entry["type"] == "custom"

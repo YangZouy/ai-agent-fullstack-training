@@ -1,0 +1,17 @@
+test_after (test_session.SessionTests.test_after) ... ok
+test_at (test_session.SessionTests.test_at) ... FAIL
+test_before (test_session.SessionTests.test_before) ... ok
+
+======================================================================
+FAIL: test_at (test_session.SessionTests.test_at)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\study\ai-agent-fullstack-training\course_code\week04\4-1\codex_deepseek_runs\53cfbf66\test_session.py", line 5, in test_at
+    def test_at(self): self.assertFalse(is_active(100, 100))
+                       ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.001s
+
+FAILED (failures=1)
